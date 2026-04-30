@@ -139,7 +139,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 24px 24px 20px;
+  align-items: center;
+  padding: 14px 24px 0;
   position: relative;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 40%, rgba(99,102,241,0.04) 0%, transparent 65%);
@@ -152,12 +153,20 @@
   justify-content: center;
   position: relative;
   min-height: 0;
+  width: 100%;
+}
+
+/* ── Timeline section wrapper ───────────────────── */
+.timeline-section {
+  flex-shrink: 0;
+  height: 160px;
+  min-height: 160px;
+  width: 100%;
 }
 
 .video-wrapper {
   position: relative;
   height: 100%;
-  max-height: calc(100vh - 180px);
   aspect-ratio: 9 / 16;
   background: #000;
   border-radius: var(--radius-lg);
@@ -181,17 +190,21 @@
   display: flex;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-surface);
-  padding: 0 4px;
+  padding: 0 2px;
   flex-shrink: 0;
+  overflow-x: auto;
+  /* Hide scrollbar but keep scrollability */
+  scrollbar-width: none;
 }
+.sidebar-tabs::-webkit-scrollbar { display: none; }
 
 .sidebar-tab {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 14px;
-  height: 40px;
-  font-size: 12px;
+  gap: 4px;
+  padding: 0 10px;
+  height: 38px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-muted);
   background: none;
@@ -201,6 +214,7 @@
   transition: color var(--t-fast), border-color var(--t-fast);
   letter-spacing: 0.01em;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .sidebar-tab:hover {
@@ -632,8 +646,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .curve-btn {
-  padding: 7px 8px;
-  font-size: 11px;
+  padding: 6px 8px;
+  font-size: 10.5px;
   font-weight: 500;
   color: var(--text-secondary);
   background: var(--bg-overlay);
@@ -642,7 +656,13 @@ input[type="range"]::-webkit-slider-thumb:hover {
   cursor: pointer;
   transition: all var(--t-fast);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
 }
+
+.curve-btn svg { flex-shrink: 0; }
 
 .curve-btn:hover {
   border-color: var(--border-strong);
@@ -656,6 +676,149 @@ input[type="range"]::-webkit-slider-thumb:hover {
   font-weight: 600;
 }
 
+/* ── Curve visualizer ───────────────────────────── */
+.curve-visualizer {
+  width: 100%;
+  padding: 14px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.curve-visualizer-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.curve-canvas-wrap {
+  width: 100%;
+  height: 72px;
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(0,0,0,0.3);
+}
+
+/* ── Canvas Toolbar ─────────────────────────────── */
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  align-self: center;
+  margin-bottom: 10px;
+}
+
+.canvas-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.canvas-tool-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-overlay);
+}
+
+.canvas-tool-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.canvas-tool-btn kbd {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.12);
+  color: inherit;
+  border: 1px solid rgba(255,255,255,0.15);
+  letter-spacing: 0;
+}
+
+.canvas-tool-btn.active kbd {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.25);
+}
+
+.canvas-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
+  margin: 0 2px;
+}
+
+/* ── Animation picker ───────────────────────────── */
+.anim-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.anim-btn {
+  padding: 6px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  line-height: 1.2;
+}
+
+.anim-btn-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.anim-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.anim-btn.active {
+  background: var(--accent-primary-dim);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* ── Textarea ───────────────────────────────────── */
+textarea.ctrl-input {
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.5;
+}
+
 /* ── Divider ────────────────────────────────────── */
 .ctrl-divider {
   height: 1px;
@@ -666,11 +829,13 @@ input[type="range"]::-webkit-slider-thumb:hover {
 /* ── Timeline ───────────────────────────────────── */
 .timeline-bar {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 24px 20px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 20px 14px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-subtle);
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .play-btn {
@@ -702,71 +867,181 @@ input[type="range"]::-webkit-slider-thumb:hover {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
+  height: 100%;
+  padding-bottom: 4px;
 }
 
 .timeline-timecodes {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   font-weight: 500;
-  letter-spacing: 0.02em;
+  height: 18px;
 }
 
-.timeline-track {
-  height: 28px;
+.timeline-hook-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--accent-primary-dim);
+  color: var(--accent-primary);
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.timeline-tracks-container {
+  flex: 1;
   background: var(--bg-overlay);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   position: relative;
-  cursor: pointer;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.timeline-track:not([data-disabled="true"]):hover {
-  border-color: var(--border-strong);
+.timeline-row {
+  height: 24px;
+  position: relative;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  flex-shrink: 0;
 }
 
-.timeline-progress {
+.timeline-row.global-track {
+  height: 32px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.timeline-layers-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.timeline-track-base {
   position: absolute;
   inset: 0;
-  right: auto;
-  background: rgba(99,102,241,0.08);
   pointer-events: none;
 }
 
-.timeline-hook-region {
+/* Blocks and Ranges */
+.hook-range-bar {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  background: var(--accent-primary);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  z-index: 10;
+  cursor: grab;
+}
+
+.hook-range-bar:active { cursor: grabbing; }
+
+.hook-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.layer-block {
   position: absolute;
   top: 4px;
   bottom: 4px;
-  background: linear-gradient(90deg, var(--accent-primary) 0%, rgba(99,102,241,0.7) 100%);
-  border-radius: var(--radius-sm);
-  opacity: 0.9;
-  pointer-events: none;
+  background: var(--layer-color, var(--accent-primary));
+  opacity: 0.8;
+  border-radius: 3px;
+  z-index: 5;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  transition: opacity 0.2s;
+  min-width: 4px;
 }
 
-.timeline-scrubber {
+.layer-block:hover {
+  opacity: 1;
+}
+
+.layer-block-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Handles */
+.timeline-handle, .layer-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 20;
+}
+
+.timeline-handle.start, .layer-handle.start { left: -5px; }
+.timeline-handle.end, .layer-handle.end { right: -5px; }
+
+.timeline-handle::after, .layer-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 12px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.layer-handle::after {
+  height: 8px;
+  width: 3px;
+}
+
+/* Playhead */
+.timeline-playhead {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
-  background: var(--text-primary);
+  background: #fff;
+  z-index: 100;
   pointer-events: none;
-  transform: translateX(-50%);
+  box-shadow: 0 0 10px rgba(255,255,255,0.5);
 }
 
-.timeline-scrubber::before {
-  content: '';
+.playhead-tip {
   position: absolute;
-  top: -3px;
+  top: -4px;
   left: 50%;
   transform: translateX(-50%);
-  width: 8px;
-  height: 8px;
-  background: var(--text-primary);
-  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
 /* ── Video upload zone ──────────────────────────── */
@@ -784,6 +1059,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transition: border-color var(--t-base), background var(--t-base);
   padding: 32px;
   position: relative;
+  z-index: 100;
 }
 
 .upload-zone:hover {

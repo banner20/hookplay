@@ -11,6 +11,7 @@ const createTextLayer = ({
   role,
   type = 'normal',
   font = 'Inter',
+  shape = 'line',
   fill = '#ffffff',
   hasStroke = true,
   stroke = '#000000',
@@ -21,12 +22,21 @@ const createTextLayer = ({
   bgColor = 'transparent',
   maxChars = 24,
   animation = null,
+  curve = null,        // per-layer easing curve override; null = use global
+  entryTime = null,   // seconds offset from hook start; null = use motionProfile stagger
+  duration = null,    // seconds duration; null = until hook ends
+  letterSpacing = 0,
+  lineHeight = 1,
+  fontWeight = null,
+  radius = 160,
+  arcSpread = 110,
 }) => ({
   id,
   content,
   role,
   type,
   font,
+  shape,
   fill,
   hasStroke,
   stroke,
@@ -37,6 +47,14 @@ const createTextLayer = ({
   bgColor,
   maxChars,
   animation,
+  curve,
+  entryTime,
+  duration,
+  letterSpacing,
+  lineHeight,
+  fontWeight,
+  radius,
+  arcSpread,
 });
 
 const STARTER_PRESETS = [
@@ -312,6 +330,198 @@ const STARTER_PRESETS = [
       createTextLayer({ id: 'nextBeat', content: 'HERE IS WHAT CHANGED MY MIND', role: 'support', y: 70, fontSize: 20, bgColor: 'rgba(45, 212, 191, 0.12)' }),
     ],
   },
+  {
+    id: 'ARC_REVEAL',
+    name: 'Arc Reveal',
+    description: 'Curved opener on top with a giant lower punchline, matching the underdog-style reference.',
+    category: 'Reference',
+    accent: '#dbeafe',
+    tags: ['arc', 'curved', 'underdog', 'reference'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'curved setup -> lower payoff',
+      strategy: 'Use a curved question or frame up top, then land a giant payoff in the lower half.',
+      slots: [
+        { id: 'arc', label: 'Curved Setup', role: 'eyebrow', maxChars: 28 },
+        { id: 'payoff', label: 'Payoff', role: 'headline', maxChars: 18 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3.2, phases: { entry: 20, emphasis: 48, hold: 22, exit: 10 } },
+    curves: { entry: 'Ease Out Expo', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'arc-pop',
+      stagger: 0.1,
+      slotOrder: ['arc', 'payoff'],
+      layerAnimations: { eyebrow: 'fade-up', headline: 'counter-slam' },
+    },
+    intensity: { scale: 'medium', distance: 'medium', shake: 'off' },
+    design: { primaryColor: '#fff7c2', punchColor: '#fff0ad', bgColor: 'rgba(31, 20, 4, 0.18)' },
+    texts: [
+      createTextLayer({ id: 'arc', content: 'DO NOT UNDERESTIMATE', role: 'eyebrow', shape: 'arc', font: 'Outfit', fill: '#dbeafe', stroke: '#577391', strokeWidth: 1, y: 24, fontSize: 24, radius: 190, arcSpread: 118, hasStroke: false, letterSpacing: 2 }),
+      createTextLayer({ id: 'payoff', content: 'THIS TINY BALL', role: 'headline', type: 'punch', font: 'Outfit', fill: '#fff0ad', stroke: '#6d5418', strokeWidth: 1, y: 76, x: 12, fontSize: 60, maxChars: 18, hasStroke: false, letterSpacing: -1 }),
+    ],
+  },
+  {
+    id: 'TASTE_STACK',
+    name: 'Taste Stack',
+    description: 'Huge taste verdict at the top with split product labels around the subject.',
+    category: 'Reference',
+    accent: '#fff0ad',
+    tags: ['taste', 'split-label', 'top-title', 'reference'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'giant verdict -> left label -> right label',
+      strategy: 'Put the conclusion first, then identify the two ingredients in a clean split layout.',
+      slots: [
+        { id: 'verdict', label: 'Verdict', role: 'headline', maxChars: 18 },
+        { id: 'left', label: 'Left Label', role: 'support', maxChars: 18 },
+        { id: 'right', label: 'Right Label', role: 'support', maxChars: 18 },
+      ],
+    },
+    layout: { safeZone: 'upper-middle', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 2.8, phases: { entry: 18, emphasis: 50, hold: 22, exit: 10 } },
+    curves: { entry: 'Pop', emphasis: 'No Overshoot', exit: 'Ease In' },
+    motionProfile: {
+      style: 'split-product',
+      stagger: 0.08,
+      slotOrder: ['verdict', 'left', 'right'],
+      layerAnimations: { headline: 'slam', support: 'fade-up' },
+    },
+    intensity: { scale: 'medium', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#fff7c2', punchColor: '#fff0ad', bgColor: 'rgba(31, 20, 4, 0.1)' },
+    texts: [
+      createTextLayer({ id: 'verdict', content: 'TASTE AMAZING', role: 'headline', type: 'punch', font: 'Outfit', fill: '#fff0ad', stroke: '#7f6a32', strokeWidth: 1, y: 16, x: 50, fontSize: 74, maxChars: 18, hasStroke: false, letterSpacing: -2 }),
+      createTextLayer({ id: 'left', content: 'PEANUT BUTTER', role: 'support', font: 'Outfit', fill: '#ffffff', y: 65, x: 14, fontSize: 28, maxChars: 16, hasStroke: false, letterSpacing: -1 }),
+      createTextLayer({ id: 'right', content: 'WHISKY', role: 'support', font: 'Outfit', fill: '#ffffff', y: 65, x: 88, fontSize: 28, maxChars: 16, hasStroke: false, letterSpacing: -1 }),
+    ],
+  },
+  {
+    id: 'SERIF_EDITORIAL',
+    name: 'Serif Editorial',
+    description: 'Elegant serif stack for short product-story hooks like the tiny bottle references.',
+    category: 'Reference',
+    accent: '#fff0ad',
+    tags: ['serif', 'editorial', 'tiny bottle', 'reference'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'serif object stack',
+      strategy: 'Keep the copy short and let the high-contrast serif typography do the storytelling.',
+      slots: [
+        { id: 'object', label: 'Object', role: 'headline', maxChars: 18 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3, phases: { entry: 24, emphasis: 42, hold: 24, exit: 10 } },
+    curves: { entry: 'Soft Float', emphasis: 'Pop', exit: 'Ease In' },
+    motionProfile: {
+      style: 'editorial-serf',
+      stagger: 0.08,
+      slotOrder: ['object'],
+      layerAnimations: { headline: 'drift-up' },
+    },
+    intensity: { scale: 'light', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#fff0ad', punchColor: '#fff0ad', bgColor: 'rgba(31, 20, 4, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'object', content: 'THIS TINY BOTTLE', role: 'headline', font: 'Cormorant Garamond', fill: '#fff0ad', y: 62, x: 46, fontSize: 58, maxChars: 20, hasStroke: false, letterSpacing: 0, lineHeight: 0.9, fontWeight: 600 }),
+    ],
+  },
+  {
+    id: 'RUM_STACK',
+    name: 'Rum Stack',
+    description: 'Aggressive lower-third stack with oversized bottom line like the Old Monk reference.',
+    category: 'Reference',
+    accent: '#f4d35e',
+    tags: ['lower-third', 'stacked', 'rum', 'reference'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'topic -> qualifier -> oversized punchline',
+      strategy: 'Stack the thought in descending order and explode the final noun at the bottom.',
+      slots: [
+        { id: 'topic', label: 'Topic', role: 'support', maxChars: 18 },
+        { id: 'qualifier', label: 'Qualifier', role: 'support', maxChars: 22 },
+        { id: 'punch', label: 'Punchline', role: 'headline', maxChars: 12 },
+      ],
+    },
+    layout: { safeZone: 'lower-third', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 2.8, phases: { entry: 18, emphasis: 52, hold: 20, exit: 10 } },
+    curves: { entry: 'Pop', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'bottom-stack',
+      stagger: 0.08,
+      slotOrder: ['topic', 'qualifier', 'punch'],
+      layerAnimations: { support: 'fade-up', headline: 'counter-slam' },
+    },
+    intensity: { scale: 'high', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#f4d35e', punchColor: '#f4d35e', bgColor: 'rgba(31, 20, 4, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'topic', content: 'OLD MONK', role: 'support', font: 'Outfit', fill: '#f4d35e', y: 58, fontSize: 34, hasStroke: false, letterSpacing: -1 }),
+      createTextLayer({ id: 'qualifier', content: "WASN'T JUST A", role: 'support', font: 'Outfit', fill: '#f4d35e', y: 66, fontSize: 24, hasStroke: false, letterSpacing: -1 }),
+      createTextLayer({ id: 'punch', content: 'RUM', role: 'headline', type: 'punch', font: 'Outfit', fill: '#f4d35e', y: 80, fontSize: 84, maxChars: 10, hasStroke: false, letterSpacing: -3 }),
+    ],
+  },
+  {
+    id: 'INTERVIEW_SERIF',
+    name: 'Interview Serif',
+    description: 'Tall interview quote stack with elegant serif copy running through the middle of frame.',
+    category: 'Reference',
+    accent: '#ffffff',
+    tags: ['interview', 'quote', 'serif', 'reference'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'statement stack',
+      strategy: 'Treat the line like a pull quote, stacked through the center with one hero verb.',
+      slots: [
+        { id: 'quote', label: 'Quote', role: 'headline', maxChars: 42 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3.4, phases: { entry: 22, emphasis: 44, hold: 24, exit: 10 } },
+    curves: { entry: 'Soft Float', emphasis: 'No Overshoot', exit: 'Ease In' },
+    motionProfile: {
+      style: 'quote-stack',
+      stagger: 0.06,
+      slotOrder: ['quote'],
+      layerAnimations: { headline: 'fade-up' },
+    },
+    intensity: { scale: 'light', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#ffffff', punchColor: '#ffffff', bgColor: 'rgba(10, 10, 10, 0.04)' },
+    texts: [
+      createTextLayer({ id: 'quote', content: 'AND YOU APPLY THAT TO THE BUSINESS', role: 'headline', font: 'Cormorant Garamond', fill: '#ffffff', y: 73, x: 48, fontSize: 54, maxChars: 38, hasStroke: false, letterSpacing: 0, lineHeight: 0.84, fontWeight: 600 }),
+    ],
+  },
+  {
+    id: 'FOOLED_WORLD',
+    name: 'Fooled World',
+    description: 'High-impact top and bottom stack designed for “fooled the whole world” style product claims.',
+    category: 'Reference',
+    accent: '#ffffff',
+    tags: ['top-bottom', 'product', 'claim', 'reference'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'top claim -> bottom payoff',
+      strategy: 'Put the provocative claim at the top and the scale statement near the product foreground.',
+      slots: [
+        { id: 'claim', label: 'Top Claim', role: 'support', maxChars: 20 },
+        { id: 'payoff', label: 'Bottom Payoff', role: 'headline', maxChars: 24 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3, phases: { entry: 18, emphasis: 50, hold: 22, exit: 10 } },
+    curves: { entry: 'Pop', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'product-claim',
+      stagger: 0.08,
+      slotOrder: ['claim', 'payoff'],
+      layerAnimations: { support: 'fade-up', headline: 'counter-slam' },
+    },
+    intensity: { scale: 'medium', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#ffffff', punchColor: '#f4d35e', bgColor: 'rgba(255,255,255,0.04)' },
+    texts: [
+      createTextLayer({ id: 'claim', content: 'GREY GOOSE FOOLED', role: 'support', font: 'Outfit', fill: '#ffffff', y: 14, fontSize: 40, hasStroke: false, letterSpacing: -1 }),
+      createTextLayer({ id: 'payoff', content: "THE ENTIRE WORLD", role: 'headline', type: 'punch', font: 'Outfit', fill: '#f4d35e', y: 76, fontSize: 58, maxChars: 22, hasStroke: false, letterSpacing: -2 }),
+    ],
+  },
 ];
 
 export const PRESET_META = Object.fromEntries(
@@ -342,6 +552,34 @@ const createPresetConfig = (preset) => deepClone({
   design: preset.design,
 });
 
+const createBlankHookConfig = () => ({
+  id: 'BLANK_HOOK',
+  template: null,
+  name: 'Untitled Hook',
+  description: 'Start from scratch or choose a preset.',
+  category: 'Custom',
+  accent: '#6366f1',
+  tags: [],
+  isBuiltIn: false,
+  structure: {
+    pattern: '',
+    strategy: '',
+    slots: [],
+  },
+  layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+  timing: { startTime: 0, duration: 3, phases: { entry: 20, emphasis: 50, hold: 20, exit: 10 } },
+  curves: { entry: 'Pop', emphasis: 'Elastic', exit: 'Ease In' },
+  motionProfile: {
+    style: 'custom',
+    stagger: 0.12,
+    slotOrder: [],
+    layerAnimations: {},
+  },
+  intensity: { scale: 'medium', distance: 'medium', shake: 'off' },
+  texts: [],
+  design: { primaryColor: '#ffffff', punchColor: '#6366f1', bgColor: 'rgba(0, 0, 0, 0.8)' },
+});
+
 const createCustomPresetFromConfig = (config, name) => {
   const presetName = name?.trim() || `${config.name} Copy`;
   const timestamp = Date.now();
@@ -364,16 +602,19 @@ const createCustomPresetFromConfig = (config, name) => {
 
 export function HookProvider({ children }) {
   const [appMode, setAppMode] = useState('design');
+  const [activeTool, setActiveTool] = useState('select'); // 'select' | 'text'
+  const [sidebarTab, setSidebarTab] = useState('layers');
   const [video, setVideo] = useState({
     url: null,
     duration: 0,
     currentTime: 0,
     playing: false,
     showSafeZones: false,
+    showPhoneFrame: false,
   });
   const [customPresets, setCustomPresets] = useState([]);
-  const [activePresetId, setActivePresetId] = useState(STARTER_PRESETS[0].id);
-  const [hookConfig, setHookConfig] = useState(() => createPresetConfig(STARTER_PRESETS[0]));
+  const [activePresetId, setActivePresetId] = useState(null);
+  const [hookConfig, setHookConfig] = useState(createBlankHookConfig);
   const [selectedTextId, setSelectedTextId] = useState(null);
 
   useEffect(() => {
@@ -397,7 +638,7 @@ export function HookProvider({ children }) {
   const presetLibrary = useMemo(() => [...STARTER_PRESETS, ...customPresets], [customPresets]);
 
   const activePreset = useMemo(
-    () => presetLibrary.find((preset) => preset.id === activePresetId) ?? presetLibrary[0],
+    () => presetLibrary.find((preset) => preset.id === activePresetId) ?? null,
     [activePresetId, presetLibrary],
   );
 
@@ -411,8 +652,18 @@ export function HookProvider({ children }) {
   };
 
   const resetActivePreset = () => {
-    if (!activePreset) return;
+    if (!activePreset) {
+      setHookConfig(createBlankHookConfig());
+      setSelectedTextId(null);
+      return;
+    }
     setHookConfig(createPresetConfig(activePreset));
+    setSelectedTextId(null);
+  };
+
+  const createBlankHook = () => {
+    setActivePresetId(null);
+    setHookConfig(createBlankHookConfig());
     setSelectedTextId(null);
   };
 
@@ -441,6 +692,45 @@ export function HookProvider({ children }) {
     return true;
   };
 
+  const addTextAtPosition = (x, y) => {
+    const newId = `layer_${Date.now()}`;
+    setHookConfig((prev) => ({
+      ...prev,
+      texts: [
+        ...prev.texts,
+        {
+          id: newId,
+          content: 'NEW TEXT',
+          role: 'support',
+          type: 'normal',
+          font: 'Inter',
+          fill: '#ffffff',
+          hasStroke: false,
+          stroke: '#000000',
+          strokeWidth: 2,
+          x,
+          y,
+          fontSize: 36,
+          bgColor: 'transparent',
+          maxChars: 24,
+          animation: null,
+          curve: null,
+          entryTime: null,
+          duration: null,
+          letterSpacing: 0,
+          lineHeight: 1,
+          fontWeight: null,
+          shape: 'line',
+          radius: 160,
+          arcSpread: 110,
+        },
+      ],
+    }));
+    setSelectedTextId(newId);
+    setActiveTool('select');
+    setSidebarTab('layers');
+  };
+
   const deletePreset = (presetId) => {
     const preset = customPresets.find((entry) => entry.id === presetId);
     if (!preset) return;
@@ -448,8 +738,8 @@ export function HookProvider({ children }) {
     setCustomPresets((prev) => prev.filter((entry) => entry.id !== presetId));
 
     if (activePresetId === presetId) {
-      setActivePresetId(STARTER_PRESETS[0].id);
-      setHookConfig(createPresetConfig(STARTER_PRESETS[0]));
+      setActivePresetId(null);
+      setHookConfig(createBlankHookConfig());
       setSelectedTextId(null);
     }
   };
@@ -458,6 +748,10 @@ export function HookProvider({ children }) {
     <HookContext.Provider value={{
       appMode,
       setAppMode,
+      activeTool,
+      setActiveTool,
+      sidebarTab,
+      setSidebarTab,
       video,
       setVideo,
       hookConfig,
@@ -468,10 +762,12 @@ export function HookProvider({ children }) {
       activePreset,
       activePresetId,
       applyPreset,
+      createBlankHook,
       resetActivePreset,
       saveCurrentAsPreset,
       updateCurrentPreset,
       deletePreset,
+      addTextAtPosition,
     }}>
       {children}
     </HookContext.Provider>

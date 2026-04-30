@@ -1,355 +1,376 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useHookStore } from '../context/HookContext';
+import { getTransition } from '../utils/transitions';
 
-const getTransition = (preset) => {
-  switch (preset) {
-    case 'Ease Out Smooth':
-      return { type: 'tween', ease: [0.25, 0.1, 0.25, 1], duration: 0.6 };
-    case 'Ease Out Expo':
-      return { type: 'tween', ease: [0.16, 1, 0.3, 1], duration: 0.8 };
-    case 'Pop':
-      return { type: 'spring', stiffness: 400, damping: 15 };
-    case 'Elastic':
-      return { type: 'spring', stiffness: 500, damping: 10, mass: 1 };
-    case 'Bounce Light':
-      return { type: 'spring', stiffness: 300, damping: 12 };
-    case 'Soft Float':
-      return { type: 'tween', ease: 'easeInOut', duration: 1.2 };
-    case 'Ease In':
-      return { type: 'tween', ease: [0.42, 0, 1, 1], duration: 0.4 };
-    case 'No Overshoot':
-      return { type: 'tween', ease: 'easeOut', duration: 0.4 };
-    default:
-      return { type: 'spring', stiffness: 400, damping: 15 };
-  }
-};
-
-const getLayerAnimation = (text, motionProfile) => {
-  const recipe = text.animation || motionProfile?.layerAnimations?.[text.role];
-
+// ─── Layer animation recipes ───────────────────────────────────────────────
+const getLayerAnimation = (recipe, isPunch) => {
   switch (recipe) {
-    case 'drift-up':
-      return {
-        initial: { opacity: 0, y: 28, scale: 0.96 },
-        animate: { opacity: 1, y: 0, scale: 1 },
-        exit: { opacity: 0, y: -16 },
-      };
-    case 'counter-slam':
-      return {
-        initial: { opacity: 0, y: 16, scale: 0.65, rotate: -6 },
-        animate: { opacity: 1, y: 0, scale: 1, rotate: 0 },
-        exit: { opacity: 0, y: -10, scale: 0.92 },
-      };
-    case 'pill-pop':
-      return {
-        initial: { opacity: 0, y: 18, scale: 0.85 },
-        animate: { opacity: 1, y: 0, scale: 1 },
-        exit: { opacity: 0, y: 8, scale: 0.9 },
-      };
-    case 'fade-up':
-      return {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -10 },
-      };
-    case 'zoom-spin':
-      return {
-        initial: { opacity: 0, scale: 0.5, rotate: -10 },
-        animate: { opacity: 1, scale: 1, rotate: 0 },
-        exit: { opacity: 0, scale: 0.88 },
-      };
-    case 'rise':
-      return {
-        initial: { opacity: 0, y: -20 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -12 },
-      };
+    case 'drift-up':     return { initial: { opacity: 0, y: 28, scale: 0.96 },              animate: { opacity: 1, y: 0, scale: 1 },               exit: { opacity: 0, y: -16 } };
+    case 'counter-slam': return { initial: { opacity: 0, y: 16, scale: 0.65, rotate: -6 },  animate: { opacity: 1, y: 0, scale: 1, rotate: 0 },    exit: { opacity: 0, y: -10, scale: 0.92 } };
+    case 'pill-pop':     return { initial: { opacity: 0, y: 18, scale: 0.85 },              animate: { opacity: 1, y: 0, scale: 1 },               exit: { opacity: 0, y: 8, scale: 0.9 } };
+    case 'fade-up':      return { initial: { opacity: 0, y: 20 },                           animate: { opacity: 1, y: 0 },                         exit: { opacity: 0, y: -10 } };
+    case 'zoom-spin':    return { initial: { opacity: 0, scale: 0.5, rotate: -10 },         animate: { opacity: 1, scale: 1, rotate: 0 },           exit: { opacity: 0, scale: 0.88 } };
+    case 'rise':         return { initial: { opacity: 0, y: -24 },                          animate: { opacity: 1, y: 0 },                         exit: { opacity: 0, y: -12 } };
+    case 'rise-down':    return { initial: { opacity: 0, y: -40, scale: 1.1 },              animate: { opacity: 1, y: 0, scale: 1 },               exit: { opacity: 0, y: 30 } };
+    case 'blur-in':      return { initial: { opacity: 0, filter: 'blur(18px)', scale: 1.04 }, animate: { opacity: 1, filter: 'blur(0px)', scale: 1 }, exit: { opacity: 0, filter: 'blur(12px)' } };
+    case 'slide-left':   return { initial: { opacity: 0, x: -80 },                         animate: { opacity: 1, x: 0 },                         exit: { opacity: 0, x: 40 } };
+    case 'slide-right':  return { initial: { opacity: 0, x: 80 },                          animate: { opacity: 1, x: 0 },                         exit: { opacity: 0, x: -40 } };
+    case 'flip-x':       return { initial: { opacity: 0, rotateX: 90 },                    animate: { opacity: 1, rotateX: 0 },                   exit: { opacity: 0, rotateX: -60 } };
+    case 'flip-y':       return { initial: { opacity: 0, rotateY: 90 },                    animate: { opacity: 1, rotateY: 0 },                   exit: { opacity: 0, rotateY: -60 } };
+    case 'expand':       return { initial: { opacity: 0, scaleX: 0.05 },                   animate: { opacity: 1, scaleX: 1 },                    exit: { opacity: 0, scaleX: 0.05 } };
     case 'slam':
     default:
-      return text.type === 'punch'
-        ? {
-            initial: { scale: 0.5, opacity: 0, rotate: -5 },
-            animate: { scale: 1, opacity: 1, rotate: 0 },
-            exit: { opacity: 0, scale: 0.9 },
-          }
-        : {
-            initial: { y: -20, opacity: 0 },
-            animate: { y: 0, opacity: 1 },
-            exit: { opacity: 0, scale: 0.96 },
-          };
+      return isPunch
+        ? { initial: { scale: 0.5, opacity: 0, rotate: -5 }, animate: { scale: 1, opacity: 1, rotate: 0 }, exit: { opacity: 0, scale: 0.9 } }
+        : { initial: { y: -20, opacity: 0 },                  animate: { y: 0, opacity: 1 },                exit: { opacity: 0, scale: 0.96 } };
   }
 };
 
-const getPhaseFractions = (timing) => {
-  const phases = timing?.phases || { entry: 20, emphasis: 50, hold: 20, exit: 10 };
-  const total = Object.values(phases).reduce((sum, value) => sum + value, 0) || 100;
-  const entry = phases.entry / total;
-  const emphasis = phases.emphasis / total;
-  const hold = phases.hold / total;
-  const exit = phases.exit / total;
+// ─── Typewriter ────────────────────────────────────────────────────────────
+function TypewriterText({ text, style, playing, animKey, entryDelay }) {
+  return (
+    <span style={{ ...style, display: 'inline' }}>
+      {text.content.split('').map((char, i) => (
+        <motion.span
+          key={`${animKey}-${i}`}
+          initial={playing ? { opacity: 0 } : false}
+          animate={{ opacity: 1 }}
+          transition={{ delay: i * 0.048, duration: 0 }}
+          style={{ display: 'inline', whiteSpace: 'pre' }}
+        >
+          {char}
+        </motion.span>
+      ))}
+    </span>
+  );
+}
 
-  return {
-    entryEnd: entry,
-    emphasisEnd: entry + emphasis,
-    holdEnd: entry + emphasis + hold,
-    exitEnd: entry + emphasis + hold + exit,
+// ─── Wave ──────────────────────────────────────────────────────────────────
+function WaveText({ text, style, playing, animKey, entryDelay }) {
+  return (
+    <span style={{ ...style, display: 'inline-flex', alignItems: 'baseline', flexWrap: 'wrap' }}>
+      {text.content.split('').map((char, i) => (
+        <motion.span
+          key={`${animKey}-${i}`}
+          initial={playing ? { y: 0, opacity: 0 } : false}
+          animate={{ y: [0, -12, 0], opacity: 1 }}
+          transition={{ delay: i * 0.06, duration: 0.55, ease: 'easeInOut' }}
+          style={{ display: 'inline', whiteSpace: 'pre' }}
+        >
+          {char}
+        </motion.span>
+      ))}
+    </span>
+  );
+}
+
+// ─── Scramble ──────────────────────────────────────────────────────────────
+const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@!?%&';
+function ScrambleText({ text, style, playing, animKey }) {
+  const [displayed, setDisplayed] = useState(text.content);
+  const frameRef = useRef(null);
+  useEffect(() => {
+    if (!playing) { setDisplayed(text.content); return; }
+    const target = text.content;
+    let frame = 0;
+    const total = Math.max(20, target.length * 2);
+    const tick = () => {
+      frame++;
+      setDisplayed(target.split('').map((ch, i) => {
+        if (ch === ' ') return ' ';
+        if (frame > (i / target.length) * total) return ch;
+        return CHARS[Math.floor(Math.random() * CHARS.length)];
+      }).join(''));
+      if (frame < total) frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+  }, [animKey, text.content, playing]);
+  return <span style={style}>{displayed}</span>;
+}
+
+// ─── Glitch ────────────────────────────────────────────────────────────────
+function GlitchText({ text, style, playing, animKey, entryDelay }) {
+  const [glitching, setGlitching] = useState(false);
+  useEffect(() => {
+    if (!playing) { setGlitching(false); return; }
+    setGlitching(true);
+    const t = setTimeout(() => setGlitching(false), 600);
+    return () => clearTimeout(t);
+  }, [animKey, playing, entryDelay]);
+  return (
+    <>
+      <style>{`@keyframes glitch-kf {
+        0%  { clip-path:inset(0 0 95% 0); transform:translate(-4px,0) skewX(-5deg); }
+        20% { clip-path:inset(40% 0 40% 0); transform:translate(4px,0) skewX(3deg); }
+        40% { clip-path:inset(80% 0 10% 0); transform:translate(-3px,0); }
+        60% { clip-path:inset(20% 0 60% 0); transform:translate(3px,0) skewX(2deg); }
+        80% { clip-path:inset(60% 0 20% 0); transform:translate(-4px,0); }
+        100%{ clip-path:inset(0 0 0 0);     transform:translate(0,0); }
+      }`}</style>
+      <motion.span
+        key={`${animKey}-g`}
+        initial={playing ? { opacity: 0 } : false}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.05 }}
+        style={{ ...style, display: 'inline-block', animation: glitching ? 'glitch-kf 0.6s steps(2,end)' : 'none' }}
+      >
+        {text.content}
+      </motion.span>
+    </>
+  );
+}
+
+// ─── Arc text ──────────────────────────────────────────────────────────────
+function ArcText({ text, style }) {
+  const letters = text.content.split('');
+  const spread = text.arcSpread ?? 100;
+  const radius = text.radius ?? 160;
+  const startAngle = -spread / 2;
+  const step = letters.length > 1 ? spread / (letters.length - 1) : 0;
+  return (
+    <div style={{ position: 'relative', width: radius * 2, height: radius + text.fontSize, transform: 'translateX(-50%)', left: '50%' }}>
+      {letters.map((letter, i) => {
+        const angle = startAngle + step * i;
+        return (
+          <span key={i} style={{ ...style, position: 'absolute', left: '50%', bottom: 0, transform: `rotate(${angle}deg) translateY(-${radius}px) rotate(${90 + angle}deg)`, transformOrigin: 'bottom center', display: 'inline-block', whiteSpace: 'pre' }}>
+            {letter === ' ' ? '\u00a0' : letter}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Draggable wrapper — raw pointer events, zero Framer Motion drag conflict ──
+function DraggableLayer({ text, containerRef, isSelected, accent, alignment, activeTool, onSelect, onPositionChange, onResizeStart, children }) {
+  const divRef = useRef(null);
+  const drag = useRef({ active: false, startPtrX: 0, startPtrY: 0, origX: 0, origY: 0, liveX: 0, liveY: 0 });
+  const translateX = alignment === 'left' ? '0%' : alignment === 'right' ? '-100%' : '-50%';
+
+  const handlePointerDown = (e) => {
+    e.stopPropagation();
+    onSelect(text.id);
+    if (activeTool === 'text') return;
+    drag.current = { active: true, startPtrX: e.clientX, startPtrY: e.clientY, origX: text.x, origY: text.y, liveX: text.x, liveY: text.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
-};
 
-const getRecipeKeyframes = ({ style, text, idx, baseState, phaseFractions }) => {
-  const isPunch = text.type === 'punch';
-  const baseScale = baseState.animate?.scale ?? 1;
-  const baseY = baseState.animate?.y ?? 0;
-  const baseRotate = baseState.animate?.rotate ?? 0;
-  const punchBoost = isPunch ? 0.12 : 0.05;
-  const subtleLift = text.role === 'eyebrow' ? -4 : -2;
-
-  const defaultKeyframes = {
-    scale: [baseScale, baseScale + punchBoost, baseScale],
-    y: [baseY, baseY + subtleLift, baseY],
-    rotate: [baseRotate, baseRotate, baseRotate],
-    opacity: [1, 1, 1],
-    times: [0, Math.min(0.55, phaseFractions.emphasisEnd), Math.min(0.86, phaseFractions.holdEnd)],
+  const handlePointerMove = (e) => {
+    if (!drag.current.active || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const newX = Math.max(0, Math.min(100, drag.current.origX + ((e.clientX - drag.current.startPtrX) / rect.width) * 100));
+    const newY = Math.max(0, Math.min(100, drag.current.origY + ((e.clientY - drag.current.startPtrY) / rect.height) * 100));
+    drag.current.liveX = newX;
+    drag.current.liveY = newY;
+    if (divRef.current) {
+      divRef.current.style.left = `${newX}%`;
+      divRef.current.style.top  = `${newY}%`;
+    }
   };
 
-  switch (style) {
-    case 'counter-pulse':
-      return {
-        scale: [baseScale, baseScale + 0.18, baseScale + 0.05, baseScale],
-        y: [baseY, baseY - 8, baseY - 3, baseY],
-        rotate: [baseRotate, 0, 0, baseRotate],
-        opacity: [1, 1, 1, 1],
-        times: [0, phaseFractions.entryEnd, Math.min(0.68, phaseFractions.emphasisEnd), Math.min(0.9, phaseFractions.holdEnd)],
-      };
-    case 'breaking-alert':
-      return {
-        scale: [baseScale, baseScale + 0.1, baseScale, baseScale + 0.04, baseScale],
-        y: [baseY, baseY - 4, baseY, baseY - 1, baseY],
-        rotate: [baseRotate, -1.5, 1.5, 0, baseRotate],
-        opacity: [1, 0.92, 1, 0.95, 1],
-        times: [0, 0.18, phaseFractions.emphasisEnd, Math.min(0.82, phaseFractions.holdEnd), Math.min(0.94, phaseFractions.holdEnd)],
-      };
-    case 'tease-reveal':
-      return {
-        scale: [baseScale, baseScale + 0.04, baseScale + 0.09, baseScale],
-        y: [baseY, baseY, baseY - 5, baseY],
-        rotate: [baseRotate, baseRotate, 0, baseRotate],
-        opacity: [1, 1, 1, 1],
-        times: [0, phaseFractions.entryEnd, phaseFractions.emphasisEnd, Math.min(0.9, phaseFractions.holdEnd)],
-      };
-    case 'story-journal':
-      return {
-        scale: [baseScale, baseScale + 0.025, baseScale],
-        y: [baseY, baseY - 6, baseY - 2],
-        rotate: [baseRotate, -0.8, 0],
-        opacity: [1, 1, 0.98],
-        times: [0, Math.min(0.62, phaseFractions.emphasisEnd), Math.min(0.94, phaseFractions.holdEnd)],
-      };
-    case 'number-stack':
-      return {
-        scale: [baseScale, baseScale + 0.1, baseScale + 0.03, baseScale],
-        y: [baseY, baseY - 10, baseY - 2, baseY],
-        rotate: [baseRotate, 0, 0, baseRotate],
-        opacity: [1, 1, 1, 1],
-        times: [0, phaseFractions.entryEnd, Math.min(0.72, phaseFractions.emphasisEnd), Math.min(0.9, phaseFractions.holdEnd)],
-      };
-    case 'versus-stack':
-      return {
-        scale: [baseScale, baseScale + 0.08, baseScale],
-        y: [baseY, baseY - 4, baseY],
-        rotate: [baseRotate, idx === 1 ? 0 : idx % 2 === 0 ? -1.2 : 1.2, baseRotate],
-        opacity: [1, 1, 1],
-        times: [0, phaseFractions.emphasisEnd, Math.min(0.92, phaseFractions.holdEnd)],
-      };
-    case 'slam-offer':
-    case 'flip-reveal':
-    default:
-      return defaultKeyframes;
-  }
-};
+  const handlePointerUp = () => {
+    if (!drag.current.active) return;
+    drag.current.active = false;
+    onPositionChange(text.id, drag.current.liveX, drag.current.liveY);
+  };
 
+  return (
+    <div
+      ref={divRef}
+      style={{
+        position:    'absolute',
+        left:        `${text.x}%`,
+        top:         `${text.y}%`,
+        transform:   `translate(${translateX}, -50%)`,
+        zIndex:      isSelected ? 30 : 20,
+        cursor:      activeTool === 'text' ? 'crosshair' : (isSelected ? 'grab' : 'pointer'),
+        border:      isSelected ? `2px dashed ${accent || 'var(--accent-primary)'}` : '2px dashed transparent',
+        padding:     '4px',
+        boxSizing:   'content-box',
+        maxWidth:    alignment === 'center' ? '78%' : '62%',
+        touchAction: 'none',
+        userSelect:  'none',
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+    >
+      {children}
+      {isSelected && (
+        <div
+          onPointerDown={(e) => { e.stopPropagation(); onResizeStart(e, text.id, text.fontSize); }}
+          style={{ position: 'absolute', right: -8, bottom: -8, width: 14, height: 14, background: accent || 'var(--accent-primary)', borderRadius: '50%', cursor: 'se-resize', zIndex: 40, boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Main overlay ──────────────────────────────────────────────────────────
 export default function HookOverlay() {
-  const { video, hookConfig, setHookConfig, selectedTextId, setSelectedTextId } = useHookStore();
-  const { timing, texts, curves, motionProfile, layout, accent } = hookConfig;
+  const {
+    appMode, video, hookConfig, setHookConfig,
+    selectedTextId, setSelectedTextId,
+    activeTool, addTextAtPosition,
+  } = useHookStore();
 
-  const isActive = video.currentTime >= timing.startTime && video.currentTime <= (timing.startTime + timing.duration);
-  const [key, setKey] = useState(0);
-  const containerRef = useRef(null);
-  const phaseFractions = getPhaseFractions(timing);
+  const { timing, texts, curves, motionProfile, layout, accent } = hookConfig;
+  const isDesignMode = appMode === 'design';
+
+  // Only active during hook window in play mode
+  const isActive = video.currentTime >= timing.startTime &&
+                   video.currentTime <= (timing.startTime + timing.duration);
+  const showTexts = isDesignMode || isActive;
+
+  const [animKey, setAnimKey] = useState(0);
+  const prevMode = useRef(appMode);
+
+  useEffect(() => {
+    if (prevMode.current === 'design' && appMode === 'play') {
+      setAnimKey((k) => k + 1);
+    }
+    prevMode.current = appMode;
+  }, [appMode]);
 
   useEffect(() => {
     if (Math.abs(video.currentTime - timing.startTime) < 0.1 && video.playing) {
-      setKey((prev) => prev + 1);
+      setAnimKey((k) => k + 1);
     }
   }, [video.currentTime, timing.startTime, video.playing]);
 
-  const handleDragEnd = (event, info, id) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
+  const containerRef = useRef(null);
 
-    let newX = ((info.point.x - rect.left) / rect.width) * 100;
-    let newY = ((info.point.y - rect.top) / rect.height) * 100;
-
-    newX = Math.max(0, Math.min(100, newX));
-    newY = Math.max(0, Math.min(100, newY));
-
+  const handlePositionChange = (id, newX, newY) => {
     setHookConfig((prev) => ({
       ...prev,
-      texts: prev.texts.map((text) => (text.id === id ? { ...text, x: newX, y: newY } : text)),
+      texts: prev.texts.map((t) => t.id === id ? { ...t, x: newX, y: newY } : t),
     }));
   };
 
-  const handleResizeStart = (event, textId, currentSize) => {
-    event.stopPropagation();
-    const startY = event.clientY;
-
-    const onMove = (moveEvent) => {
-      const deltaY = moveEvent.clientY - startY;
-      const newSize = Math.max(10, currentSize + (deltaY * 0.5));
-
+  const handleResizeStart = (e, textId, currentSize) => {
+    e.stopPropagation();
+    const startY = e.clientY;
+    const onMove = (mv) => {
+      const newSize = Math.max(10, currentSize + (mv.clientY - startY) * 0.5);
       setHookConfig((prev) => ({
         ...prev,
-        texts: prev.texts.map((text) => (
-          text.id === textId ? { ...text, fontSize: Math.round(newSize) } : text
-        )),
+        texts: prev.texts.map((t) => t.id === textId ? { ...t, fontSize: Math.round(newSize) } : t),
       }));
     };
-
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   };
 
-  const handleContainerClick = (event) => {
-    if (event.target.id === 'hook-export-container') {
+  const handleContainerPointerDown = (e) => {
+    if (e.target.id !== 'hook-export-container') return;
+    if (activeTool === 'text') {
+      const rect = containerRef.current.getBoundingClientRect();
+      addTextAtPosition(
+        ((e.clientX - rect.left) / rect.width) * 100,
+        ((e.clientY - rect.top)  / rect.height) * 100,
+      );
+    } else {
       setSelectedTextId(null);
     }
   };
 
-  if (!isActive) return null;
+  const alignment = layout?.alignment || 'center';
 
   return (
     <div
       id="hook-export-container"
       ref={containerRef}
-      onPointerDown={handleContainerClick}
-      style={{ position: 'absolute', inset: 0, zIndex: 10, overflow: 'hidden' }}
+      onPointerDown={handleContainerPointerDown}
+      style={{
+        position: 'absolute', inset: 0, zIndex: 10, overflow: 'hidden',
+        cursor: activeTool === 'text' ? 'crosshair' : 'default',
+        perspective: '800px',
+      }}
     >
-      <AnimatePresence mode="wait">
-        <React.Fragment key={key}>
-          {texts.map((text, idx) => {
-            const baseFontFamily = text.font.toLowerCase() === 'outfit'
-              ? 'var(--font-display)'
-              : 'var(--font-sans)';
-            const baseState = getLayerAnimation(text, motionProfile);
-            const keyframes = getRecipeKeyframes({
-              style: motionProfile?.style,
-              text,
-              idx,
-              baseState,
-              phaseFractions,
-            });
-            const transition = {
-              ...(text.type === 'punch'
-                ? getTransition(curves.emphasis)
-                : getTransition(curves.entry)),
-              delay: 0.1 + ((motionProfile?.stagger ?? 0.15) * idx),
-            };
-            const isSelected = selectedTextId === text.id;
-            const alignment = layout?.alignment || 'center';
-            const translateX = alignment === 'left' ? '0%' : alignment === 'right' ? '-100%' : '-50%';
-            const textAlign = alignment;
-            const maxWidth = alignment === 'center' ? '78%' : '62%';
-            const sequenceDuration = Math.max(0.8, (timing?.duration ?? 3) - (0.18 * idx));
+      <AnimatePresence>
+        {showTexts && texts.map((text, originalIdx) => {
+          // 1. Calculate timing variables using original index
+          const stagger = motionProfile?.stagger ?? 0.15;
+          const entryOffset = text.entryTime ?? (originalIdx * stagger + 0.1);
+          const layerDur = text.duration ?? (timing.duration - entryOffset);
+          const textStart = timing.startTime + entryOffset;
+          const textEnd   = textStart + layerDur;
+          
+          // 2. Visibility check (with small buffer)
+          const isVisible = isDesignMode || (video.currentTime >= textStart - 0.02 && video.currentTime <= textEnd + 0.02);
+          
+          if (!isVisible) return null;
 
-            return (
-              <motion.div
-                key={`container-${text.id}`}
-                drag
-                dragMomentum={false}
-                onDragEnd={(event, info) => handleDragEnd(event, info, text.id)}
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  setSelectedTextId(text.id);
-                }}
-                style={{
-                  position: 'absolute',
-                  left: `${text.x}%`,
-                  top: `${text.y}%`,
-                  transform: `translate(${translateX}, -50%)`,
-                  zIndex: isSelected ? 30 : 20,
-                  cursor: isSelected ? 'grab' : 'pointer',
-                  border: isSelected ? `2px dashed ${accent || 'var(--accent-primary)'}` : '2px dashed transparent',
-                  padding: '4px',
-                  boxSizing: 'content-box',
-                  width: maxWidth,
-                }}
-              >
-                <motion.div
-                  key={text.id}
-                  initial={baseState.initial}
-                  animate={{
-                    ...baseState.animate,
-                    scale: keyframes.scale,
-                    y: keyframes.y,
-                    rotate: keyframes.rotate,
-                    opacity: keyframes.opacity,
-                  }}
-                  exit={baseState.exit}
-                  transition={{
-                    ...transition,
-                    duration: sequenceDuration,
-                    times: keyframes.times,
-                  }}
-                  style={{
-                    fontFamily: baseFontFamily,
-                    fontSize: `${text.fontSize}px`,
-                    color: text.fill,
-                    WebkitTextStroke: text.hasStroke ? `${text.strokeWidth}px ${text.stroke}` : '0px transparent',
-                    textShadow: text.type === 'punch'
-                      ? '0 4px 20px rgba(0,0,0,0.6)'
-                      : '0 2px 10px rgba(0,0,0,0.5)',
-                    fontWeight: text.type === 'punch' ? 900 : 700,
-                    textTransform: 'uppercase',
-                    lineHeight: 1,
-                    textAlign,
-                    background: text.bgColor !== 'transparent' ? text.bgColor : 'transparent',
-                    padding: text.bgColor !== 'transparent' ? '8px 24px' : '0',
-                    borderRadius: text.bgColor !== 'transparent' ? 'var(--radius-xl)' : '0',
-                    boxShadow: text.bgColor !== 'transparent' ? 'var(--shadow-lg)' : 'none',
-                    whiteSpace: 'normal',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {text.content}
-                </motion.div>
+          const recipe     = text.animation || motionProfile?.layerAnimations?.[text.role];
+          const isCharLevel = ['typewriter', 'wave', 'scramble', 'glitch'].includes(recipe);
+          const isPunch    = text.type === 'punch';
+          const baseState  = getLayerAnimation(recipe, isPunch);
+          const playing    = !isDesignMode;
 
-                {isSelected && (
-                  <div
-                    onPointerDown={(event) => handleResizeStart(event, text.id, text.fontSize)}
-                    style={{
-                      position: 'absolute',
-                      right: '-8px',
-                      bottom: '-8px',
-                      width: '16px',
-                      height: '16px',
-                      background: 'var(--accent-primary)',
-                      borderRadius: '50%',
-                      cursor: 'se-resize',
-                      zIndex: 40,
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                    }}
-                  />
+          const activeCurve = text.curve ?? (isPunch ? curves.emphasis : curves.entry);
+          const transition  = getTransition(activeCurve);
+
+          const baseFontFamily = text.font === 'Cormorant Garamond'
+            ? 'var(--font-serif)'
+            : text.font?.toLowerCase() === 'outfit' ? 'var(--font-display)' : 'var(--font-sans)';
+
+          const textStyle = {
+            fontFamily:       baseFontFamily,
+            fontSize:         `${text.fontSize}px`,
+            color:            text.fill,
+            WebkitTextStroke: text.hasStroke ? `${text.strokeWidth}px ${text.stroke}` : '0px transparent',
+            textShadow:       isPunch ? '0 4px 20px rgba(0,0,0,0.6)' : '0 2px 10px rgba(0,0,0,0.5)',
+            fontWeight:       text.fontWeight ?? (isPunch ? 900 : 700),
+            textTransform:    text.font === 'Cormorant Garamond' ? 'none' : 'uppercase',
+            lineHeight:       text.lineHeight ?? 1,
+            textAlign:        alignment,
+            background:       text.bgColor !== 'transparent' ? text.bgColor : 'transparent',
+            padding:          text.bgColor !== 'transparent' ? '8px 24px' : '0',
+            borderRadius:     text.bgColor !== 'transparent' ? 'var(--radius-xl)' : '0',
+            boxShadow:        text.bgColor !== 'transparent' ? 'var(--shadow-lg)' : 'none',
+            whiteSpace:       'normal',
+            pointerEvents:    'none',
+            letterSpacing:    `${text.letterSpacing ?? 0}px`,
+          };
+
+          return (
+            <DraggableLayer
+              key={text.id}
+              text={text}
+              containerRef={containerRef}
+              isSelected={selectedTextId === text.id}
+              accent={accent}
+              alignment={alignment}
+              activeTool={activeTool}
+              onSelect={setSelectedTextId}
+              onPositionChange={handlePositionChange}
+              onResizeStart={handleResizeStart}
+            >
+              <div key={animKey} style={{ display: 'contents' }}>
+                {recipe === 'typewriter' && <TypewriterText text={text} style={textStyle} playing={playing} animKey={animKey} />}
+                {recipe === 'wave'       && <WaveText       text={text} style={textStyle} playing={playing} animKey={animKey} />}
+                {recipe === 'scramble'   && <ScrambleText   text={text} style={textStyle} playing={playing} animKey={animKey} />}
+                {recipe === 'glitch'     && <GlitchText     text={text} style={textStyle} playing={playing} animKey={animKey} />}
+
+                {!isCharLevel && (
+                  <motion.div
+                    initial={playing ? baseState.initial : false}
+                    animate={baseState.animate}
+                    exit={baseState.exit}
+                    transition={transition}
+                    style={textStyle}
+                  >
+                    {text.shape === 'arc' ? <ArcText text={text} style={textStyle} /> : text.content}
+                  </motion.div>
                 )}
-              </motion.div>
-            );
-          })}
-        </React.Fragment>
+              </div>
+            </DraggableLayer>
+          );
+        })}
       </AnimatePresence>
     </div>
   );

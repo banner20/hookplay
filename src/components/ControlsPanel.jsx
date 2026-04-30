@@ -1,13 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PRESET_META, useHookStore } from '../context/HookContext';
 import {
   BookmarkCheck,
   BookmarkPlus,
   ChevronRight,
+  House,
   LayoutGrid,
   Layers,
   Plus,
   RotateCcw,
+  Sparkles,
   Trash2,
   Wand2,
 } from 'lucide-react';
@@ -123,7 +125,60 @@ function PresetCard({ preset, active, onClick, onDelete }) {
   );
 }
 
+// Flat list of all curves for per-layer picker
+const ALL_CURVES = [
+  'Ease Out Smooth', 'Ease Out Expo', 'Pop', 'Soft Float',
+  'Spring Stiff', 'Spring Soft', 'Overshoot', 'Elastic',
+  'Bounce Light', 'No Overshoot', 'Linear',
+];
+
+function LayerCurvePicker({ value, onChange, accent = '#6366f1' }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+      {/* Big preview of selected curve */}
+      {value && (
+        <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 'var(--radius-md)', border: `1px solid ${accent}44`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <CurvePreviewSVG curveName={value} color={accent} width={100} height={38} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: accent }}>{value}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Layer easing</div>
+          </div>
+        </div>
+      )}
+      {/* Grid of options */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+        {/* 'Auto/global' option */}
+        <button
+          className={`curve-btn ${!value ? 'active' : ''}`}
+          onClick={() => onChange(null)}
+          title="Use global curve"
+        >
+          <span style={{ fontSize: 13, lineHeight: 1 }}>⚙️</span>
+          <span style={{ fontSize: 8, lineHeight: 1.2 }}>Global</span>
+        </button>
+        {ALL_CURVES.map((c) => (
+          <button
+            key={c}
+            className={`curve-btn ${value === c ? 'active' : ''}`}
+            onClick={() => onChange(c)}
+            title={c}
+          >
+            <CurvePreviewSVG
+              curveName={c}
+              color={value === c ? accent : 'rgba(255,255,255,0.25)'}
+              width={48}
+              height={22}
+            />
+            <span style={{ fontSize: 8, lineHeight: 1.2, letterSpacing: '0.01em', marginTop: 1 }}>{c}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LayerCard({ text, expanded, onToggle, onUpdate, onDelete }) {
+  const { hookConfig } = useHookStore();
   const isPunch = text.type === 'punch';
 
   return (
@@ -166,6 +221,7 @@ function LayerCard({ text, expanded, onToggle, onUpdate, onDelete }) {
             >
               <option value="Inter">Inter</option>
               <option value="Outfit">Outfit</option>
+              <option value="Cormorant Garamond">Cormorant Garamond</option>
             </CtrlSelect>
             <CtrlSelect
               label="Type"
@@ -175,6 +231,33 @@ function LayerCard({ text, expanded, onToggle, onUpdate, onDelete }) {
               <option value="normal">Normal</option>
               <option value="punch">Punch</option>
             </CtrlSelect>
+          </div>
+
+          <div>
+            <Label>Animation</Label>
+            <AnimPicker
+              value={text.animation}
+              onChange={(val) => onUpdate(text.id, 'animation', val)}
+            />
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Label>Easing curve{!text.curve ? ' (using global)' : ''}</Label>
+              {text.curve && (
+                <button
+                  style={{ fontSize: 10, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={() => onUpdate(text.id, 'curve', null)}
+                >
+                  ↩ global
+                </button>
+              )}
+            </div>
+            <LayerCurvePicker
+              value={text.curve}
+              onChange={(val) => onUpdate(text.id, 'curve', val)}
+              accent={text.fill && text.fill !== '#ffffff' ? text.fill : '#6366f1'}
+            />
           </div>
 
           <div>
@@ -244,6 +327,40 @@ function LayerCard({ text, expanded, onToggle, onUpdate, onDelete }) {
           </div>
 
           <Divider />
+          
+          <div>
+            <Label>Timing</Label>
+            <div className="row-2">
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 10, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Entry (s)</span>
+                <input
+                  className="ctrl-input"
+                  type="number"
+                  step={0.1}
+                  min={0}
+                  max={hookConfig.timing.duration - 0.1}
+                  value={text.entryTime ?? 0}
+                  onChange={(e) => onUpdate(text.id, 'entryTime', parseFloat(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 10, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Duration (s)</span>
+                <input
+                  className="ctrl-input"
+                  type="number"
+                  step={0.1}
+                  min={0.1}
+                  max={hookConfig.timing.duration}
+                  value={text.duration ?? (hookConfig.timing.duration - (text.entryTime ?? 0))}
+                  onChange={(e) => onUpdate(text.id, 'duration', parseFloat(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Divider />
           <div className="row-3">
             <CtrlInput
               label="X %"
@@ -277,31 +394,206 @@ function LayerCard({ text, expanded, onToggle, onUpdate, onDelete }) {
 }
 
 const CURVES = {
-  entry: ['Ease Out Smooth', 'Ease Out Expo', 'Pop', 'Soft Float'],
-  emphasis: ['Pop', 'Elastic', 'Bounce Light', 'No Overshoot'],
+  entry: [
+    'Ease Out Smooth',
+    'Ease Out Expo',
+    'Pop',
+    'Soft Float',
+    'Spring Stiff',
+    'Spring Soft',
+    'Overshoot',
+    'Linear',
+  ],
+  emphasis: [
+    'Pop',
+    'Elastic',
+    'Bounce Light',
+    'No Overshoot',
+    'Spring Stiff',
+    'Overshoot',
+    'Ease Out Expo',
+    'Linear',
+  ],
 };
 
-function CurveSelector({ value, options, onChange }) {
+// Bezier control points for visual preview
+const CURVE_BEZIER = {
+  'Ease Out Smooth':  [[0, 0], [0.25, 0.1], [0.25, 1],  [1, 1]],
+  'Ease Out Expo':    [[0, 0], [0.16, 1],   [0.3, 1],   [1, 1]],
+  'Pop':              [[0, 0], [0.2, 1.4],  [0.6, 1.1], [1, 1]],
+  'Elastic':          [[0, 0], [0.1, 1.8],  [0.5, 0.9], [1, 1]],
+  'Bounce Light':     [[0, 0], [0.2, 1.6],  [0.7, 0.95],[1, 1]],
+  'Soft Float':       [[0, 0], [0.4, 0],    [0.6, 1],   [1, 1]],
+  'Ease In':          [[0, 0], [0.42, 0],   [1, 1],     [1, 1]],
+  'No Overshoot':     [[0, 0], [0, 0.5],    [0.5, 1],   [1, 1]],
+  'Spring Stiff':     [[0, 0], [0.1, 1.3],  [0.4, 1.05],[1, 1]],
+  'Spring Soft':      [[0, 0], [0.3, 0.8],  [0.7, 1],   [1, 1]],
+  'Overshoot':        [[0, 0], [0.15, 1.6], [0.5, 0.85],[1, 1]],
+  'Linear':           [[0, 0], [0.33, 0.33],[0.66, 0.66],[1, 1]],
+};
+
+function CurvePreviewSVG({ curveName, color = '#6366f1', width = 56, height = 32 }) {
+  const pts = CURVE_BEZIER[curveName];
+  if (!pts) return null;
+  const pad = 4;
+  const w = width - pad * 2;
+  const h = height - pad * 2;
+  const toX = (v) => pad + v * w;
+  const toY = (v) => pad + (1 - Math.max(0, Math.min(1.8, v))) / 1.8 * h;
+
+  // Sample 40 points along the cubic bezier
+  const [p0, p1, p2, p3] = pts;
+  const samples = Array.from({ length: 40 }, (_, i) => {
+    const t = i / 39;
+    const mt = 1 - t;
+    const x = mt**3*p0[0] + 3*mt**2*t*p1[0] + 3*mt*t**2*p2[0] + t**3*p3[0];
+    const y = mt**3*p0[1] + 3*mt**2*t*p1[1] + 3*mt*t**2*p2[1] + t**3*p3[1];
+    return `${toX(x)},${toY(y)}`;
+  });
+
   return (
-    <div className="curve-grid">
-      {options.map((option) => (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+      {/* grid lines */}
+      <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="rgba(255,255,255,0.06)" strokeWidth="0.8" />
+      <line x1={pad} y1={pad} x2={pad} y2={height - pad} stroke="rgba(255,255,255,0.06)" strokeWidth="0.8" />
+      {/* curve */}
+      <polyline
+        points={samples.join(' ')}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.85"
+      />
+      {/* end dot */}
+      <circle cx={toX(1)} cy={toY(1)} r="2.5" fill={color} />
+    </svg>
+  );
+}
+
+const LAYER_ANIMS = [
+  { id: null,           label: 'Auto',       icon: '⚡' },
+  { id: 'slam',         label: 'Slam',       icon: '💥' },
+  { id: 'rise',         label: 'Rise',       icon: '⬆️' },
+  { id: 'rise-down',    label: 'Drop',       icon: '⬇️' },
+  { id: 'drift-up',     label: 'Drift',      icon: '🌊' },
+  { id: 'fade-up',      label: 'Fade Up',    icon: '🌅' },
+  { id: 'pill-pop',     label: 'Pill Pop',   icon: '🔘' },
+  { id: 'counter-slam', label: 'Counter',    icon: '🎯' },
+  { id: 'zoom-spin',    label: 'Zoom',       icon: '🔍' },
+  { id: 'blur-in',      label: 'Blur In',    icon: '✨' },
+  { id: 'slide-left',   label: 'Slide ←',    icon: '◀️' },
+  { id: 'slide-right',  label: 'Slide →',    icon: '▶️' },
+  { id: 'flip-x',       label: 'Flip X',     icon: '🔄' },
+  { id: 'flip-y',       label: 'Flip Y',     icon: '↕️' },
+  { id: 'expand',       label: 'Expand',     icon: '↔️' },
+  { id: 'typewriter',   label: 'Type',       icon: '⌨️' },
+  { id: 'wave',         label: 'Wave',       icon: '🌊' },
+  { id: 'scramble',     label: 'Scramble',   icon: '🎲' },
+  { id: 'glitch',       label: 'Glitch',     icon: '⚡' },
+];
+
+function AnimPicker({ value, onChange }) {
+  return (
+    <div className="anim-grid">
+      {LAYER_ANIMS.map((anim) => (
         <button
-          key={option}
-          className={`curve-btn ${value === option ? 'active' : ''}`}
-          onClick={() => onChange(option)}
+          key={String(anim.id)}
+          className={`anim-btn ${(value ?? null) === anim.id ? 'active' : ''}`}
+          onClick={() => onChange(anim.id)}
+          title={anim.label}
         >
-          {option}
+          <span className="anim-btn-icon">{anim.icon}</span>
+          {anim.label}
         </button>
       ))}
     </div>
   );
 }
 
+function CurveSelector({ label, value, options, onChange, accentColor = '#6366f1' }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Live visualizer for selected curve */}
+      <div className="curve-visualizer">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="curve-visualizer-label">{label || 'Curve'}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: accentColor }}>{value}</span>
+        </div>
+        <div className="curve-canvas-wrap">
+          <CurvePreviewSVG
+            curveName={value}
+            color={accentColor}
+            width={280}
+            height={72}
+          />
+        </div>
+      </div>
+      {/* Grid of curve options */}
+      <div className="curve-grid">
+        {options.map((option) => (
+          <button
+            key={option}
+            className={`curve-btn ${value === option ? 'active' : ''}`}
+            onClick={() => onChange(option)}
+          >
+            <CurvePreviewSVG curveName={option} color={value === option ? accentColor : 'rgba(255,255,255,0.2)'} width={56} height={28} />
+            <span style={{ fontSize: 9, letterSpacing: '0.02em', lineHeight: 1.2 }}>{option}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const TABS = [
+  { id: 'start',     label: 'Start',     icon: House },
+  { id: 'generator', label: 'Generator', icon: Sparkles },
   { id: 'templates', label: 'Templates', icon: LayoutGrid },
-  { id: 'layers', label: 'Layers', icon: Layers },
-  { id: 'motion', label: 'Motion', icon: Wand2 },
+  { id: 'layers',    label: 'Layers',    icon: Layers },
+  { id: 'motion',    label: 'Motion',    icon: Wand2 },
 ];
+
+function StartPanel() {
+  const { presetLibrary, applyPreset, createBlankHook } = useHookStore();
+  const featuredPresets = presetLibrary.slice(0, 6);
+
+  return (
+    <div className="tab-panel">
+      <div className="ctrl-section">
+        <SectionLabel>Start a hook</SectionLabel>
+        <div style={{ padding: 14, background: 'var(--bg-overlay)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <strong style={{ fontSize: 15 }}>Choose how you want to begin</strong>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Start blank and add layers manually, or jump into one of the hook systems below.
+          </p>
+          <button className="btn-primary" onClick={createBlankHook}>
+            <Plus size={14} />
+            Start blank composer
+          </button>
+        </div>
+      </div>
+
+      <Divider />
+
+      <div className="ctrl-section">
+        <SectionLabel>Featured presets</SectionLabel>
+        <div className="preset-grid">
+          {featuredPresets.map((preset) => (
+            <PresetCard
+              key={preset.id}
+              preset={preset}
+              active={false}
+              onClick={applyPreset}
+              onDelete={() => {}}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TemplatesPanel() {
   const {
@@ -538,6 +830,14 @@ function TemplatesPanel() {
         <label className="toggle-row">
           <input
             type="checkbox"
+            checked={video.showPhoneFrame}
+            onChange={(event) => setVideo((prev) => ({ ...prev, showPhoneFrame: event.target.checked }))}
+          />
+          <span>Show phone frame</span>
+        </label>
+        <label className="toggle-row">
+          <input
+            type="checkbox"
             checked={video.showSafeZones}
             onChange={(event) => setVideo((prev) => ({ ...prev, showSafeZones: event.target.checked }))}
           />
@@ -548,9 +848,208 @@ function TemplatesPanel() {
   );
 }
 
+function GeneratorPanel() {
+  const { hookConfig, setHookConfig } = useHookStore();
+  const [inputs, setInputs] = useState({
+    topic: '',
+    audience: '',
+    promise: '',
+    pain: '',
+    result: '',
+    day: '5',
+    count: '3',
+  });
+
+  const setInput = (field, value) => {
+    setInputs((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const fillTexts = (values) => {
+    setHookConfig((prev) => ({
+      ...prev,
+      texts: prev.texts.map((text, index) => ({
+        ...text,
+        content: values[index] || text.content,
+      })),
+    }));
+  };
+
+  const generateForPreset = () => {
+    const topic = inputs.topic || 'YOUR CONTENT';
+    const audience = inputs.audience || 'YOUR AUDIENCE';
+    const promise = inputs.promise || 'BETTER RESULTS';
+    const pain = inputs.pain || 'SLOW GROWTH';
+    const result = inputs.result || 'MORE RETENTION';
+    const day = inputs.day || '5';
+    const count = inputs.count || '3';
+
+    switch (hookConfig.template) {
+      case 'ARC_REVEAL':
+        fillTexts([
+          `DO NOT ${promise.toUpperCase()}`,
+          `${topic.toUpperCase()}`,
+        ]);
+        break;
+      case 'TASTE_STACK':
+        fillTexts([
+          promise.toUpperCase(),
+          topic.toUpperCase(),
+          result.toUpperCase(),
+        ]);
+        break;
+      case 'SERIF_EDITORIAL':
+        fillTexts([
+          `${topic} ${result}`.toUpperCase(),
+        ]);
+        break;
+      case 'RUM_STACK':
+        fillTexts([
+          topic.toUpperCase(),
+          pain.toUpperCase(),
+          result.toUpperCase(),
+        ]);
+        break;
+      case 'INTERVIEW_SERIF':
+        fillTexts([
+          `${promise} TO THE ${topic}`.toUpperCase(),
+        ]);
+        break;
+      case 'FOOLED_WORLD':
+        fillTexts([
+          `${topic.toUpperCase()} FOOLED`,
+          `THE ENTIRE ${result.toUpperCase()}`,
+        ]);
+        break;
+      case 'SERIES_DAY':
+        fillTexts([
+          topic.toUpperCase(),
+          `DAY ${day}`,
+          `AND I FINALLY GOT ${result.toUpperCase()}`,
+        ]);
+        break;
+      case 'PRICE_SHOCK':
+        fillTexts([
+          `${topic.toUpperCase()} FOR`,
+          promise.toUpperCase(),
+          `FOR ${audience.toUpperCase()}`,
+        ]);
+        break;
+      case 'CONTRAST':
+        fillTexts([
+          `TIRED OF ${pain.toUpperCase()}?`,
+          `TRY THIS ${topic.toUpperCase()}`,
+          `IF YOU WANT ${result.toUpperCase()}`,
+        ]);
+        break;
+      case 'CURIOSITY':
+        fillTexts([
+          `NOBODY TELLS ${audience.toUpperCase()}`,
+          `THIS ${topic.toUpperCase()}`,
+          `UNTIL IT IS TOO LATE`,
+        ]);
+        break;
+      case 'TRANSFORMATION':
+        fillTexts([
+          `BEFORE ${topic.toUpperCase()}`,
+          'VS',
+          `AFTER ${result.toUpperCase()}`,
+        ]);
+        break;
+      case 'WARNING':
+        fillTexts([
+          'WARNING',
+          `STOP ${pain.toUpperCase()}`,
+          `IT KILLS ${result.toUpperCase()}`,
+        ]);
+        break;
+      case 'LISTICLE':
+        fillTexts([
+          `${count} THINGS`,
+          `TO GET ${result.toUpperCase()}`,
+          `FOR ${audience.toUpperCase()}`,
+        ]);
+        break;
+      case 'CONFESSION':
+        fillTexts([
+          `I ALMOST QUIT ${topic.toUpperCase()}`,
+          `BECAUSE OF ${pain.toUpperCase()}`,
+          `UNTIL I GOT ${result.toUpperCase()}`,
+        ]);
+        break;
+      default:
+        fillTexts([
+          topic.toUpperCase(),
+          promise.toUpperCase(),
+          `FOR ${audience.toUpperCase()}`,
+        ]);
+        break;
+    }
+  };
+
+  return (
+    <div className="tab-panel">
+      {!hookConfig.template && (
+        <div className="ctrl-section">
+          <SectionLabel>Generator locked</SectionLabel>
+          <div style={{ padding: 14, background: 'var(--bg-overlay)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Select a preset first if you want guided hook generation, or switch to Layers and add your own text manually.
+          </div>
+        </div>
+      )}
+      <div className="ctrl-section">
+        <SectionLabel>Hook generator</SectionLabel>
+        <div style={{ padding: 12, background: 'var(--bg-overlay)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <strong style={{ fontSize: 13 }}>{hookConfig.name}</strong>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Use a few structured inputs and generate copy straight into the active preset slots.
+          </p>
+        </div>
+      </div>
+
+      <div className="ctrl-section">
+        <SectionLabel>Inputs</SectionLabel>
+        <CtrlInput label="Topic" value={inputs.topic} onChange={(event) => setInput('topic', event.target.value)} />
+        <CtrlInput label="Audience" value={inputs.audience} onChange={(event) => setInput('audience', event.target.value)} />
+        <CtrlInput label="Promise" value={inputs.promise} onChange={(event) => setInput('promise', event.target.value)} />
+        <CtrlInput label="Pain / objection" value={inputs.pain} onChange={(event) => setInput('pain', event.target.value)} />
+        <CtrlInput label="Result / payoff" value={inputs.result} onChange={(event) => setInput('result', event.target.value)} />
+        <div className="row-2">
+          <CtrlInput label="Day number" value={inputs.day} onChange={(event) => setInput('day', event.target.value)} />
+          <CtrlInput label="List count" value={inputs.count} onChange={(event) => setInput('count', event.target.value)} />
+        </div>
+        <button className="btn-primary" onClick={generateForPreset} disabled={!hookConfig.template}>
+          <Sparkles size={14} />
+          Generate hook copy
+        </button>
+      </div>
+
+      <Divider />
+
+      <div className="ctrl-section">
+        <SectionLabel>Slot preview</SectionLabel>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {hookConfig.texts.map((text) => (
+            <div key={text.id} style={{ padding: 10, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-overlay)' }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                {text.role}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>{text.content}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LayersPanel() {
   const { hookConfig, setHookConfig, selectedTextId, setSelectedTextId } = useHookStore();
   const [expandedId, setExpandedId] = useState(null);
+
+  // Auto-expand a layer when it becomes selected (e.g. placed via text tool)
+  useEffect(() => {
+    if (selectedTextId) setExpandedId(selectedTextId);
+  }, [selectedTextId]);
 
   const updateText = (id, field, value) => {
     setHookConfig((prev) => ({
@@ -578,6 +1077,16 @@ function LayersPanel() {
         fontSize: 32,
         bgColor: 'transparent',
         maxChars: 24,
+        animation: null,
+        curve: null,
+        entryTime: null,
+        duration: null,
+        letterSpacing: 0,
+        lineHeight: 1,
+        fontWeight: null,
+        shape: 'line',
+        radius: 160,
+        arcSpread: 110,
       }],
     }));
     setExpandedId(newId);
@@ -737,9 +1246,11 @@ function MotionPanel() {
       <div className="ctrl-section">
         <SectionLabel>Entry animation</SectionLabel>
         <CurveSelector
+          label="Entry curve"
           value={hookConfig.curves.entry}
           options={CURVES.entry}
           onChange={(value) => updateCurve('entry', value)}
+          accentColor="#6366f1"
         />
       </div>
 
@@ -748,9 +1259,11 @@ function MotionPanel() {
       <div className="ctrl-section">
         <SectionLabel>Punch / emphasis</SectionLabel>
         <CurveSelector
+          label="Emphasis curve"
           value={hookConfig.curves.emphasis}
           options={CURVES.emphasis}
           onChange={(value) => updateCurve('emphasis', value)}
+          accentColor="#f59e0b"
         />
       </div>
     </div>
@@ -758,7 +1271,7 @@ function MotionPanel() {
 }
 
 export default function ControlsPanel() {
-  const [activeTab, setActiveTab] = useState('templates');
+  const { sidebarTab, setSidebarTab } = useHookStore();
 
   return (
     <>
@@ -768,8 +1281,8 @@ export default function ControlsPanel() {
           return (
             <button
               key={tab.id}
-              className={`sidebar-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              className={`sidebar-tab ${sidebarTab === tab.id ? 'active' : ''}`}
+              onClick={() => setSidebarTab(tab.id)}
             >
               <Icon size={12} strokeWidth={2.5} />
               {tab.label}
@@ -778,9 +1291,11 @@ export default function ControlsPanel() {
         })}
       </nav>
 
-      {activeTab === 'templates' && <TemplatesPanel />}
-      {activeTab === 'layers' && <LayersPanel />}
-      {activeTab === 'motion' && <MotionPanel />}
+      {sidebarTab === 'start'     && <StartPanel />}
+      {sidebarTab === 'generator' && <GeneratorPanel />}
+      {sidebarTab === 'templates' && <TemplatesPanel />}
+      {sidebarTab === 'layers'    && <LayersPanel />}
+      {sidebarTab === 'motion'    && <MotionPanel />}
     </>
   );
 }

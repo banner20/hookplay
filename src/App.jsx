@@ -3,6 +3,7 @@ import './App.css';
 import VideoPreview from './components/VideoPreview';
 import ControlsPanel from './components/ControlsPanel';
 import TimelineScrubber from './components/TimelineScrubber';
+import CanvasToolbar from './components/CanvasToolbar';
 import ExportModal from './components/ExportModal';
 import { useHookStore } from './context/HookContext';
 import { Download, Zap, Layers, Clapperboard } from 'lucide-react';
@@ -58,10 +59,13 @@ function App() {
 
       <main className="main-content">
         <section className="preview-section">
+          <CanvasToolbar />
           <div className="canvas-container">
             <VideoPreview />
           </div>
-          <TimelineScrubber />
+          <div className="timeline-section">
+            <TimelineScrubber />
+          </div>
         </section>
 
         <section className="controls-section">
