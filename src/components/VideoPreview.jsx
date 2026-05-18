@@ -31,13 +31,19 @@ function FrameShell({ children, accent, enabled }) {
 }
 
 export default function VideoPreview() {
-  const { video, setVideo, hookConfig, activeTool } = useHookStore();
+  const { video, setVideo, hookConfig, activeTool, videoElRef } = useHookStore();
   const videoRef = useRef(null);
+
+  // Keep the store's videoElRef in sync so KaraokeText can read currentTime via rAF
+  React.useEffect(() => {
+    videoElRef.current = videoRef.current;
+  });
+
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setVideo((prev) => ({ ...prev, url: URL.createObjectURL(file) }));
+    setVideo((prev) => ({ ...prev, url: URL.createObjectURL(file), localFile: file, name: file.name }));
   };
 
   const handleTimeUpdate = () => {

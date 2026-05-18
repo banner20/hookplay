@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { isSupabaseEnabled, supabase } from '../lib/supabase';
+import { createProject, updateProject as dbUpdateProject, loadProject } from '../lib/db';
+import { uploadVideo, getVideoSignedUrl } from '../lib/storage';
 
 const HookContext = createContext(null);
 const CUSTOM_PRESETS_STORAGE_KEY = 'hookforge.custom-presets.v1';
@@ -20,8 +23,10 @@ const createTextLayer = ({
   y = 50,
   fontSize = 32,
   bgColor = 'transparent',
+  bgStyle = 'pill',    // 'pill' | 'bar' | 'box'
   maxChars = 24,
   animation = null,
+  textEffect = null,   // char-level renderer: null | 'scramble' | 'typewriter' | 'wave' | 'glitch'
   curve = null,        // per-layer easing curve override; null = use global
   entryTime = null,   // seconds offset from hook start; null = use motionProfile stagger
   duration = null,    // seconds duration; null = until hook ends
@@ -30,6 +35,26 @@ const createTextLayer = ({
   fontWeight = null,
   radius = 160,
   arcSpread = 110,
+  textCase = null,     // null = legacy (uppercase for sans, none for serif) | 'upper' | 'lower' | 'none' | 'title'
+  opacity = 1,         // 0.05–1
+  shadow = null,       // null = default | 'none' | 'soft' | 'glow' | 'hard'
+  warpAmount = 50,     // 0–100 intensity for non-arc warp shapes
+  // Warp / 3-D
+  skewX = 0,
+  skewY = 0,
+  rotateX = 0,
+  rotateY = 0,
+  textRotate = 0,
+  // Gradient fill
+  fillType = 'solid',     // 'solid' | 'gradient'
+  gradientFrom = null,
+  gradientTo = null,
+  gradientAngle = 135,
+  // Layer FX
+  backdropBlur = 0,
+  blendMode = 'normal',
+  hidden = false,
+  textAlign = null,          // null = inherit global layout.alignment | 'left' | 'center' | 'right'
 }) => ({
   id,
   content,
@@ -45,8 +70,10 @@ const createTextLayer = ({
   y,
   fontSize,
   bgColor,
+  bgStyle,
   maxChars,
   animation,
+  textEffect,
   curve,
   entryTime,
   duration,
@@ -55,6 +82,23 @@ const createTextLayer = ({
   fontWeight,
   radius,
   arcSpread,
+  textCase,
+  opacity,
+  shadow,
+  warpAmount,
+  skewX,
+  skewY,
+  rotateX,
+  rotateY,
+  textRotate,
+  fillType,
+  gradientFrom,
+  gradientTo,
+  gradientAngle,
+  backdropBlur,
+  blendMode,
+  hidden,
+  textAlign,
 });
 
 const STARTER_PRESETS = [
@@ -519,7 +563,388 @@ const STARTER_PRESETS = [
     design: { primaryColor: '#ffffff', punchColor: '#f4d35e', bgColor: 'rgba(255,255,255,0.04)' },
     texts: [
       createTextLayer({ id: 'claim', content: 'GREY GOOSE FOOLED', role: 'support', font: 'Outfit', fill: '#ffffff', y: 14, fontSize: 40, hasStroke: false, letterSpacing: -1 }),
-      createTextLayer({ id: 'payoff', content: "THE ENTIRE WORLD", role: 'headline', type: 'punch', font: 'Outfit', fill: '#f4d35e', y: 76, fontSize: 58, maxChars: 22, hasStroke: false, letterSpacing: -2 }),
+      createTextLayer({ id: 'payoff', content: 'THE ENTIRE WORLD', role: 'headline', type: 'punch', font: 'Outfit', fill: '#f4d35e', y: 76, fontSize: 58, maxChars: 22, hasStroke: false, letterSpacing: -2 }),
+    ],
+  },
+
+  // ─── ALCOHOL / BEVERAGE NICHE ────────────────────────────────────────────────
+
+  {
+    id: 'BLIND_VERDICT',
+    name: 'Blind Verdict',
+    description: 'Blind tasting reveal — huge verdict on top, the bottle name explodes at the bottom.',
+    category: 'Beverage',
+    accent: '#f4d35e',
+    tags: ['blind-taste', 'whiskey', 'verdict', 'beverage', 'reveal'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'verdict -> blind label -> bottle reveal',
+      strategy: 'State the result first, keep the product anonymous in the middle, then slam the name.',
+      slots: [
+        { id: 'verdict', label: 'Verdict', role: 'headline', maxChars: 14 },
+        { id: 'setup', label: 'Setup', role: 'support', maxChars: 22 },
+        { id: 'bottle', label: 'Bottle Name', role: 'eyebrow', maxChars: 16 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3, phases: { entry: 18, emphasis: 52, hold: 20, exit: 10 } },
+    curves: { entry: 'Pop', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'bottom-stack',
+      stagger: 0.1,
+      slotOrder: ['verdict', 'setup', 'bottle'],
+      layerAnimations: { headline: 'slam', support: 'fade-up', eyebrow: 'counter-slam' },
+    },
+    intensity: { scale: 'high', distance: 'medium', shake: 'off' },
+    design: { primaryColor: '#f4d35e', punchColor: '#f4d35e', bgColor: 'rgba(20, 10, 0, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'verdict', content: 'BEST NEAT', role: 'headline', type: 'punch', font: 'Outfit', fill: '#f4d35e', y: 15, fontSize: 72, maxChars: 14, hasStroke: false, letterSpacing: -2 }),
+      createTextLayer({ id: 'setup', content: "I'VE EVER TASTED", role: 'support', font: 'Outfit', fill: '#ffffff', y: 56, fontSize: 28, hasStroke: false, letterSpacing: -1 }),
+      createTextLayer({ id: 'bottle', content: 'LAGAVULIN 16', role: 'eyebrow', font: 'Outfit', fill: '#f4d35e', y: 80, fontSize: 42, hasStroke: false, letterSpacing: -1 }),
+    ],
+  },
+
+  {
+    id: 'WRONG_WAY',
+    name: 'Drinking It Wrong',
+    description: 'Myth-bust hook — “you\'ve been drinking X wrong” paired with the correct method below.',
+    category: 'Beverage',
+    accent: '#fb923c',
+    tags: ['myth-bust', 'wrong', 'drinking', 'beverage', 'education'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'accusation -> drink name -> correction',
+      strategy: 'Open with the accusation, name the drink, then tease the right way.',
+      slots: [
+        { id: 'accusation', label: 'Accusation', role: 'eyebrow', maxChars: 26 },
+        { id: 'drink', label: 'Drink Name', role: 'headline', maxChars: 14 },
+        { id: 'fix', label: 'Fix / Tease', role: 'support', maxChars: 28 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3.2, phases: { entry: 18, emphasis: 52, hold: 20, exit: 10 } },
+    curves: { entry: 'Ease Out Expo', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'flip-reveal',
+      stagger: 0.12,
+      slotOrder: ['accusation', 'drink', 'fix'],
+      layerAnimations: { eyebrow: 'rise', headline: 'slam', support: 'fade-up' },
+    },
+    intensity: { scale: 'medium', distance: 'medium', shake: 'off' },
+    design: { primaryColor: '#ffffff', punchColor: '#fb923c', bgColor: 'rgba(20, 8, 0, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'accusation', content: "YOU'VE BEEN DRINKING", role: 'eyebrow', font: 'Outfit', fill: '#ffffff', y: 22, fontSize: 26, hasStroke: false, letterSpacing: -0.5 }),
+      createTextLayer({ id: 'drink', content: 'BOURBON', role: 'headline', type: 'punch', font: 'Outfit', fill: '#fb923c', y: 46, fontSize: 80, maxChars: 14, hasStroke: false, letterSpacing: -3 }),
+      createTextLayer({ id: 'fix', content: 'WRONG YOUR ENTIRE LIFE', role: 'support', font: 'Outfit', fill: '#ffffff', y: 72, fontSize: 24, hasStroke: false, letterSpacing: -0.5 }),
+    ],
+  },
+
+  {
+    id: 'PRICE_TAG',
+    name: 'Price Tag',
+    description: 'Price reveal hook — product name floats top, the cost slams in large at the bottom.',
+    category: 'Beverage',
+    accent: '#a3e635',
+    tags: ['price', 'reveal', 'cost', 'beverage', 'spirit'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'product name -> price reveal',
+      strategy: 'Name the bottle first so the price lands with full context.',
+      slots: [
+        { id: 'product', label: 'Product', role: 'support', maxChars: 22 },
+        { id: 'price', label: 'Price', role: 'headline', maxChars: 10 },
+        { id: 'qualifier', label: 'Qualifier', role: 'eyebrow', maxChars: 24 },
+      ],
+    },
+    layout: { safeZone: 'lower-third', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 2.8, phases: { entry: 18, emphasis: 52, hold: 20, exit: 10 } },
+    curves: { entry: 'Pop', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'bottom-stack',
+      stagger: 0.08,
+      slotOrder: ['product', 'qualifier', 'price'],
+      layerAnimations: { support: 'fade-up', eyebrow: 'drift-up', headline: 'counter-slam' },
+    },
+    intensity: { scale: 'high', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#ffffff', punchColor: '#a3e635', bgColor: 'rgba(4, 20, 4, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'product', content: 'MACALLAN 18', role: 'support', font: 'Outfit', fill: '#ffffff', y: 58, fontSize: 30, hasStroke: false, letterSpacing: -1 }),
+      createTextLayer({ id: 'qualifier', content: 'COSTS', role: 'eyebrow', font: 'Outfit', fill: '#ffffff', y: 66, fontSize: 20, hasStroke: false, letterSpacing: 1 }),
+      createTextLayer({ id: 'price', content: '$320', role: 'headline', type: 'punch', font: 'Outfit', fill: '#a3e635', y: 82, fontSize: 88, maxChars: 10, hasStroke: false, letterSpacing: -3 }),
+    ],
+  },
+
+  {
+    id: 'ORIGIN_DROP',
+    name: 'Origin Drop',
+    description: 'Heritage story hook — birth year or origin fact drops as a punch, product name anchors below.',
+    category: 'Beverage',
+    accent: '#fcd34d',
+    tags: ['origin', 'heritage', 'history', 'year', 'beverage'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'year / origin fact -> brand name',
+      strategy: 'Lead with the striking historical fact, let the brand name pay it off.',
+      slots: [
+        { id: 'fact', label: 'Fact / Year', role: 'headline', maxChars: 16 },
+        { id: 'context', label: 'Context', role: 'support', maxChars: 22 },
+        { id: 'brand', label: 'Brand Name', role: 'eyebrow', maxChars: 20 },
+      ],
+    },
+    layout: { safeZone: 'upper-middle', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3.2, phases: { entry: 20, emphasis: 48, hold: 22, exit: 10 } },
+    curves: { entry: 'Ease Out Expo', emphasis: 'No Overshoot', exit: 'Ease In' },
+    motionProfile: {
+      style: 'editorial-serf',
+      stagger: 0.12,
+      slotOrder: ['fact', 'context', 'brand'],
+      layerAnimations: { headline: 'drift-up', support: 'fade-up', eyebrow: 'rise' },
+    },
+    intensity: { scale: 'light', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#fcd34d', punchColor: '#fcd34d', bgColor: 'rgba(20, 12, 0, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'fact', content: 'SINCE 1820', role: 'headline', font: 'Cormorant Garamond', fill: '#fcd34d', y: 22, fontSize: 68, maxChars: 16, hasStroke: false, letterSpacing: 2, fontWeight: 600 }),
+      createTextLayer({ id: 'context', content: 'THIS DISTILLERY HAS NEVER', role: 'support', font: 'Outfit', fill: '#ffffff', y: 50, fontSize: 22, hasStroke: false, letterSpacing: -0.5 }),
+      createTextLayer({ id: 'brand', content: 'CHANGED THE RECIPE', role: 'eyebrow', font: 'Outfit', fill: '#fcd34d', y: 62, fontSize: 22, hasStroke: false, letterSpacing: -0.5 }),
+    ],
+  },
+
+  {
+    id: 'SPIRIT_VS',
+    name: 'Spirit Versus',
+    description: 'Clean two-bottle comparison hook — name them top and bottom, let the viewer pick a side.',
+    category: 'Beverage',
+    accent: '#f4d35e',
+    tags: ['versus', 'comparison', 'spirits', 'battle', 'beverage'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'bottle A -> vs -> bottle B',
+      strategy: 'Keep both names equal weight, let the VS split carry the tension.',
+      slots: [
+        { id: 'bottleA', label: 'Bottle A', role: 'headline', maxChars: 14 },
+        { id: 'vs', label: 'VS Label', role: 'eyebrow', maxChars: 4 },
+        { id: 'bottleB', label: 'Bottle B', role: 'headline', maxChars: 14 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3, phases: { entry: 18, emphasis: 52, hold: 20, exit: 10 } },
+    curves: { entry: 'Pop', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'versus-stack',
+      stagger: 0.1,
+      slotOrder: ['bottleA', 'vs', 'bottleB'],
+      layerAnimations: { eyebrow: 'fade-up', headline: 'slam' },
+    },
+    intensity: { scale: 'medium', distance: 'medium', shake: 'off' },
+    design: { primaryColor: '#f4d35e', punchColor: '#f4d35e', bgColor: 'rgba(20, 12, 0, 0.1)' },
+    texts: [
+      createTextLayer({ id: 'bottleA', content: 'JOHNNIE WALKER', role: 'headline', type: 'punch', font: 'Outfit', fill: '#ffffff', y: 22, fontSize: 50, maxChars: 14, hasStroke: false, letterSpacing: -2 }),
+      createTextLayer({ id: 'vs', content: 'VS', role: 'eyebrow', font: 'Outfit', fill: '#f4d35e', y: 48, fontSize: 30, hasStroke: false, letterSpacing: 6 }),
+      createTextLayer({ id: 'bottleB', content: 'CHIVAS REGAL', role: 'headline', type: 'punch', font: 'Outfit', fill: '#ffffff', y: 72, fontSize: 50, maxChars: 14, hasStroke: false, letterSpacing: -2 }),
+    ],
+  },
+
+  {
+    id: 'TASTING_NOTE',
+    name: 'Tasting Note',
+    description: 'Flavour descriptor stack — one headline flavour word up top, the full tasting note below.',
+    category: 'Beverage',
+    accent: '#fdba74',
+    tags: ['tasting', 'flavour', 'notes', 'descriptor', 'beverage'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'hero flavour -> full descriptor -> bottle',
+      strategy: 'One dominant taste word grabs attention; the secondary notes reward those who stay.',
+      slots: [
+        { id: 'hero', label: 'Hero Flavour', role: 'headline', maxChars: 14 },
+        { id: 'notes', label: 'Tasting Notes', role: 'support', maxChars: 30 },
+        { id: 'bottle', label: 'Bottle', role: 'eyebrow', maxChars: 20 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3.4, phases: { entry: 22, emphasis: 44, hold: 24, exit: 10 } },
+    curves: { entry: 'Soft Float', emphasis: 'No Overshoot', exit: 'Ease In' },
+    motionProfile: {
+      style: 'editorial-serf',
+      stagger: 0.14,
+      slotOrder: ['hero', 'notes', 'bottle'],
+      layerAnimations: { headline: 'drift-up', support: 'fade-up', eyebrow: 'rise' },
+    },
+    intensity: { scale: 'light', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#fdba74', punchColor: '#fdba74', bgColor: 'rgba(20, 8, 0, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'hero', content: 'SMOKY', role: 'headline', font: 'Cormorant Garamond', fill: '#fdba74', y: 22, fontSize: 82, maxChars: 14, hasStroke: false, letterSpacing: -1, fontWeight: 600 }),
+      createTextLayer({ id: 'notes', content: 'VANILLA · OAK · DARK CHOCOLATE', role: 'support', font: 'Outfit', fill: '#ffffff', y: 52, fontSize: 20, hasStroke: false, letterSpacing: 1 }),
+      createTextLayer({ id: 'bottle', content: 'ARDBEG 10', role: 'eyebrow', font: 'Outfit', fill: '#fdba74', y: 67, fontSize: 22, hasStroke: false, letterSpacing: 0 }),
+    ],
+  },
+
+  {
+    id: 'HIDDEN_BOTTLE',
+    name: 'Hidden Bottle',
+    description: 'Mystery hook — “nobody talks about this” positioned above a giant unknown product name.',
+    category: 'Beverage',
+    accent: '#c4b5fd',
+    tags: ['hidden', 'mystery', 'underrated', 'beverage', 'reveal'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'nobody knows -> the thing -> why',
+      strategy: 'Open with exclusion, drop the name like a secret, tease the payoff below.',
+      slots: [
+        { id: 'setup', label: 'Setup', role: 'eyebrow', maxChars: 26 },
+        { id: 'name', label: 'Product Name', role: 'headline', maxChars: 16 },
+        { id: 'tease', label: 'Tease', role: 'support', maxChars: 26 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3.2, phases: { entry: 20, emphasis: 48, hold: 22, exit: 10 } },
+    curves: { entry: 'Soft Float', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'tease-reveal',
+      stagger: 0.14,
+      slotOrder: ['setup', 'name', 'tease'],
+      layerAnimations: { eyebrow: 'fade-up', headline: 'zoom-spin', support: 'pill-pop' },
+    },
+    intensity: { scale: 'medium', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#ffffff', punchColor: '#c4b5fd', bgColor: 'rgba(10, 6, 20, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'setup', content: 'NOBODY TALKS ABOUT', role: 'eyebrow', font: 'Outfit', fill: '#c4b5fd', y: 24, fontSize: 22, hasStroke: false, letterSpacing: 0.5 }),
+      createTextLayer({ id: 'name', content: 'THIS BOTTLE', role: 'headline', type: 'punch', font: 'Outfit', fill: '#ffffff', y: 48, fontSize: 68, maxChars: 16, hasStroke: false, letterSpacing: -2 }),
+      createTextLayer({ id: 'tease', content: 'AND IT SHOULD BE IN YOUR BAR', role: 'support', font: 'Outfit', fill: '#c4b5fd', y: 72, fontSize: 20, hasStroke: false, letterSpacing: 0 }),
+    ],
+  },
+
+  {
+    id: 'COCKTAIL_REVEAL',
+    name: 'Cocktail Reveal',
+    description: 'Recipe hook — ingredient punch at top, cocktail name slams at the bottom.',
+    category: 'Beverage',
+    accent: '#34d399',
+    tags: ['cocktail', 'recipe', 'mix', 'beverage', 'reveal'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'key ingredient -> makes a -> cocktail name',
+      strategy: 'Lead with the star ingredient, then make the cocktail name the payoff.',
+      slots: [
+        { id: 'ingredient', label: 'Key Ingredient', role: 'eyebrow', maxChars: 20 },
+        { id: 'bridge', label: 'Bridge', role: 'support', maxChars: 18 },
+        { id: 'cocktail', label: 'Cocktail Name', role: 'headline', maxChars: 16 },
+      ],
+    },
+    layout: { safeZone: 'lower-third', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 2.8, phases: { entry: 18, emphasis: 52, hold: 20, exit: 10 } },
+    curves: { entry: 'Pop', emphasis: 'Elastic', exit: 'Ease In' },
+    motionProfile: {
+      style: 'bottom-stack',
+      stagger: 0.1,
+      slotOrder: ['ingredient', 'bridge', 'cocktail'],
+      layerAnimations: { eyebrow: 'drift-up', support: 'fade-up', headline: 'counter-slam' },
+    },
+    intensity: { scale: 'high', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#34d399', punchColor: '#34d399', bgColor: 'rgba(4, 20, 12, 0.08)' },
+    texts: [
+      createTextLayer({ id: 'ingredient', content: 'MEZCAL', role: 'eyebrow', font: 'Outfit', fill: '#ffffff', y: 56, fontSize: 28, hasStroke: false, letterSpacing: 2 }),
+      createTextLayer({ id: 'bridge', content: 'MAKES THE BEST', role: 'support', font: 'Outfit', fill: '#ffffff', y: 65, fontSize: 20, hasStroke: false, letterSpacing: -0.5 }),
+      createTextLayer({ id: 'cocktail', content: 'NEGRONI', role: 'headline', type: 'punch', font: 'Outfit', fill: '#34d399', y: 82, fontSize: 80, maxChars: 16, hasStroke: false, letterSpacing: -3 }),
+    ],
+  },
+
+  {
+    id: 'BOTTLE_RANK',
+    name: 'Bottle Rank',
+    description: 'Ranking hook — position number explodes on the left, bottle name locks right with serif elegance.',
+    category: 'Beverage',
+    accent: '#f4d35e',
+    tags: ['ranking', 'list', 'top', 'beverage', 'whiskey'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'rank number -> bottle name -> category',
+      strategy: 'The number creates instant curiosity; the bottle name delivers the promise.',
+      slots: [
+        { id: 'rank', label: 'Rank', role: 'headline', maxChars: 4 },
+        { id: 'bottle', label: 'Bottle Name', role: 'support', maxChars: 20 },
+        { id: 'category', label: 'Category', role: 'eyebrow', maxChars: 22 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3, phases: { entry: 18, emphasis: 52, hold: 20, exit: 10 } },
+    curves: { entry: 'Ease Out Expo', emphasis: 'No Overshoot', exit: 'Ease In' },
+    motionProfile: {
+      style: 'number-stack',
+      stagger: 0.1,
+      slotOrder: ['category', 'rank', 'bottle'],
+      layerAnimations: { eyebrow: 'drift-up', headline: 'counter-slam', support: 'fade-up' },
+    },
+    intensity: { scale: 'medium', distance: 'medium', shake: 'off' },
+    design: { primaryColor: '#f4d35e', punchColor: '#f4d35e', bgColor: 'rgba(20, 14, 0, 0.1)' },
+    texts: [
+      createTextLayer({ id: 'category', content: 'BEST SINGLE MALT', role: 'eyebrow', font: 'Outfit', fill: '#ffffff', y: 24, fontSize: 20, hasStroke: false, letterSpacing: 1 }),
+      createTextLayer({ id: 'rank', content: '#1', role: 'headline', type: 'punch', font: 'Outfit', fill: '#f4d35e', y: 50, x: 18, fontSize: 88, maxChars: 4, hasStroke: false, letterSpacing: -2 }),
+      createTextLayer({ id: 'bottle', content: 'GLENFARCLAS 25', role: 'support', font: 'Cormorant Garamond', fill: '#ffffff', y: 76, fontSize: 40, maxChars: 20, hasStroke: false, letterSpacing: 0, fontWeight: 600 }),
+    ],
+  },
+
+  {
+    id: 'CRAFT_STORY',
+    name: 'Craft Story',
+    description: 'Slow editorial reveal for craft distillery / small batch stories — one sentence, huge serif treatment.',
+    category: 'Beverage',
+    accent: '#fde68a',
+    tags: ['craft', 'small-batch', 'story', 'editorial', 'beverage'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'craft claim serif stack',
+      strategy: 'One measured sentence about the production, no frills — just the serif and the story.',
+      slots: [
+        { id: 'claim', label: 'Craft Claim', role: 'headline', maxChars: 36 },
+      ],
+    },
+    layout: { safeZone: 'center-stack', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3.4, phases: { entry: 24, emphasis: 42, hold: 24, exit: 10 } },
+    curves: { entry: 'Soft Float', emphasis: 'No Overshoot', exit: 'Ease In' },
+    motionProfile: {
+      style: 'quote-stack',
+      stagger: 0.06,
+      slotOrder: ['claim'],
+      layerAnimations: { headline: 'drift-up' },
+    },
+    intensity: { scale: 'light', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#fde68a', punchColor: '#fde68a', bgColor: 'rgba(20, 12, 0, 0.06)' },
+    texts: [
+      createTextLayer({ id: 'claim', content: 'AGED IN A SINGLE BARREL FOR 12 YEARS', role: 'headline', font: 'Cormorant Garamond', fill: '#fde68a', y: 70, x: 50, fontSize: 46, maxChars: 40, hasStroke: false, letterSpacing: 0, lineHeight: 0.88, fontWeight: 600 }),
+    ],
+  },
+
+  {
+    id: 'POUR_MOMENT',
+    name: 'Pour Moment',
+    description: 'Minimal lower-third label for a pour or serve moment — clean product name below, nothing above.',
+    category: 'Beverage',
+    accent: '#ffffff',
+    tags: ['pour', 'serve', 'minimal', 'lower-third', 'beverage'],
+    isBuiltIn: true,
+    structure: {
+      pattern: 'product name -> serving note',
+      strategy: 'Let the video do the talking; text just names what you see.',
+      slots: [
+        { id: 'product', label: 'Product', role: 'headline', maxChars: 18 },
+        { id: 'serve', label: 'Serve Note', role: 'support', maxChars: 22 },
+      ],
+    },
+    layout: { safeZone: 'lower-third', alignment: 'center', anchor: 'middle' },
+    timing: { startTime: 0, duration: 3, phases: { entry: 22, emphasis: 46, hold: 22, exit: 10 } },
+    curves: { entry: 'Soft Float', emphasis: 'No Overshoot', exit: 'Ease In' },
+    motionProfile: {
+      style: 'editorial-serf',
+      stagger: 0.08,
+      slotOrder: ['product', 'serve'],
+      layerAnimations: { headline: 'drift-up', support: 'fade-up' },
+    },
+    intensity: { scale: 'light', distance: 'light', shake: 'off' },
+    design: { primaryColor: '#ffffff', punchColor: '#f4d35e', bgColor: 'rgba(0,0,0,0.04)' },
+    texts: [
+      createTextLayer({ id: 'product', content: 'HIBIKI HARMONY', role: 'headline', font: 'Cormorant Garamond', fill: '#ffffff', y: 72, x: 50, fontSize: 52, maxChars: 18, hasStroke: false, letterSpacing: 1, fontWeight: 600 }),
+      createTextLayer({ id: 'serve', content: 'SERVED OVER A SINGLE SPHERE', role: 'support', font: 'Outfit', fill: '#f4d35e', y: 83, fontSize: 18, hasStroke: false, letterSpacing: 0.5 }),
     ],
   },
 ];
@@ -603,9 +1028,12 @@ const createCustomPresetFromConfig = (config, name) => {
 export function HookProvider({ children }) {
   const [appMode, setAppMode] = useState('design');
   const [activeTool, setActiveTool] = useState('select'); // 'select' | 'text'
-  const [sidebarTab, setSidebarTab] = useState('layers');
+  const [sidebarTab, setSidebarTab] = useState('transcribe');
   const [video, setVideo] = useState({
     url: null,
+    localFile: null,
+    storagePath: null,
+    name: null,
     duration: 0,
     currentTime: 0,
     playing: false,
@@ -616,6 +1044,37 @@ export function HookProvider({ children }) {
   const [activePresetId, setActivePresetId] = useState(null);
   const [hookConfig, setHookConfig] = useState(createBlankHookConfig);
   const [selectedTextId, setSelectedTextId] = useState(null);
+  // Multi-select: array of selected ids. Primary selection (selectedTextId) is always the last clicked.
+  const [selectedTextIds, setSelectedTextIds] = useState([]);
+  const [timelineH, setTimelineH] = useState(160);
+  const [previewKey, setPreviewKey] = useState(0);
+  const triggerPreview = () => setPreviewKey((k) => k + 1);
+
+  const [currentProjectId, setCurrentProjectId] = useState(null);
+  const [projectSaveStatus, setProjectSaveStatus] = useState('idle'); // 'idle'|'saving'|'saved'|'error'
+  const saveTimerRef = useRef(null);
+
+  // ── Undo ─────────────────────────────────────────────────────────────────
+  // Ref to the actual <video> DOM element — set by VideoPreview, read by KaraokeText for rAF-based timing
+  const videoElRef = useRef(null);
+
+  const hookHistoryRef = useRef([]);
+  const [undoCount, setUndoCount] = useState(0);
+  const pushHistory = useCallback(() => {
+    setHookConfig((current) => {
+      hookHistoryRef.current = [...hookHistoryRef.current.slice(-40), deepClone(current)];
+      setUndoCount(hookHistoryRef.current.length);
+      return current; // no actual change, just capture
+    });
+  }, []);
+  const undo = useCallback(() => {
+    if (hookHistoryRef.current.length === 0) return;
+    const prev = hookHistoryRef.current.at(-1);
+    hookHistoryRef.current = hookHistoryRef.current.slice(0, -1);
+    setUndoCount(hookHistoryRef.current.length);
+    setHookConfig(prev);
+  }, []);
+
 
   useEffect(() => {
     try {
@@ -634,6 +1093,25 @@ export function HookProvider({ children }) {
   useEffect(() => {
     window.localStorage.setItem(CUSTOM_PRESETS_STORAGE_KEY, JSON.stringify(customPresets));
   }, [customPresets]);
+
+  // Auto-save: debounce 2s after any hookConfig change when a project is open
+  useEffect(() => {
+    if (!currentProjectId || !isSupabaseEnabled) return;
+    setProjectSaveStatus('saving');
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        await dbUpdateProject(currentProjectId, { hookConfig });
+        setProjectSaveStatus('saved');
+        const t = setTimeout(() => setProjectSaveStatus('idle'), 2500);
+        return () => clearTimeout(t);
+      } catch (err) {
+        console.error('[HookForge] Auto-save failed:', err);
+        setProjectSaveStatus('error');
+      }
+    }, 2000);
+    return () => clearTimeout(saveTimerRef.current);
+  }, [hookConfig, currentProjectId]);
 
   const presetLibrary = useMemo(() => [...STARTER_PRESETS, ...customPresets], [customPresets]);
 
@@ -712,6 +1190,7 @@ export function HookProvider({ children }) {
           y,
           fontSize: 36,
           bgColor: 'transparent',
+          bgStyle: 'pill',
           maxChars: 24,
           animation: null,
           curve: null,
@@ -723,12 +1202,29 @@ export function HookProvider({ children }) {
           shape: 'line',
           radius: 160,
           arcSpread: 110,
+          textCase: 'upper',
+          opacity: 1,
+          shadow: null,
+          warpAmount: 50,
+          skewX: 0,
+          skewY: 0,
+          rotateX: 0,
+          rotateY: 0,
+          textRotate: 0,
+          fillType: 'solid',
+          gradientFrom: null,
+          gradientTo: null,
+          gradientAngle: 135,
+          backdropBlur: 0,
+          blendMode: 'normal',
+          hidden: false,
+          textAlign: null,
         },
       ],
     }));
     setSelectedTextId(newId);
     setActiveTool('select');
-    setSidebarTab('layers');
+    setSidebarTab('style');
   };
 
   const deletePreset = (presetId) => {
@@ -744,6 +1240,66 @@ export function HookProvider({ children }) {
     }
   };
 
+  // ── Project management ────────────────────────────────────────────────────
+  const saveNewProject = async (name = 'Untitled Project') => {
+    if (!isSupabaseEnabled) return null;
+    setProjectSaveStatus('saving');
+    try {
+      let videoPath = video.storagePath ?? null;
+      let videoName = video.name ?? null;
+      let videoDuration = video.duration ?? null;
+
+      // Upload video if it's a local file not yet uploaded
+      if (video.localFile && !video.storagePath) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const tempId = `tmp_${Date.now()}`;
+        videoPath = await uploadVideo(video.localFile, user.id, tempId);
+        setVideo((v) => ({ ...v, storagePath: videoPath }));
+      }
+
+      const proj = await createProject({ name, hookConfig, videoPath, videoName, videoDuration });
+      setCurrentProjectId(proj.id);
+      setProjectSaveStatus('saved');
+      setTimeout(() => setProjectSaveStatus('idle'), 2500);
+      return proj.id;
+    } catch (err) {
+      console.error('[HookForge] Save failed:', err);
+      setProjectSaveStatus('error');
+      return null;
+    }
+  };
+
+  const loadProjectById = async (projectId) => {
+    if (!isSupabaseEnabled) return;
+    try {
+      const proj = await loadProject(projectId);
+      setCurrentProjectId(proj.id);
+      setHookConfig(proj.hook_config);
+      setSelectedTextId(null);
+      setSelectedTextIds([]);
+      hookHistoryRef.current = [];
+      setUndoCount(0);
+
+      if (proj.video_path) {
+        const signedUrl = await getVideoSignedUrl(proj.video_path);
+        setVideo((v) => ({
+          ...v,
+          url: signedUrl,
+          storagePath: proj.video_path,
+          name: proj.video_name,
+          duration: proj.video_duration ?? 0,
+          localFile: null,
+          currentTime: 0,
+          playing: false,
+        }));
+      } else {
+        setVideo((v) => ({ ...v, url: null, localFile: null, storagePath: null, name: null, duration: 0, currentTime: 0 }));
+      }
+    } catch (err) {
+      console.error('[HookForge] Load project failed:', err);
+    }
+  };
+
   return (
     <HookContext.Provider value={{
       appMode,
@@ -754,10 +1310,20 @@ export function HookProvider({ children }) {
       setSidebarTab,
       video,
       setVideo,
+      videoElRef,
       hookConfig,
       setHookConfig,
       selectedTextId,
       setSelectedTextId,
+      selectedTextIds,
+      setSelectedTextIds,
+      timelineH,
+      setTimelineH,
+      previewKey,
+      triggerPreview,
+      undoCount,
+      pushHistory,
+      undo,
       presetLibrary,
       activePreset,
       activePresetId,
@@ -768,6 +1334,10 @@ export function HookProvider({ children }) {
       updateCurrentPreset,
       deletePreset,
       addTextAtPosition,
+      currentProjectId,
+      projectSaveStatus,
+      saveNewProject,
+      loadProjectById,
     }}>
       {children}
     </HookContext.Provider>
