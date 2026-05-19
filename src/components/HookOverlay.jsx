@@ -808,6 +808,8 @@ export default function HookOverlay() {
     selectedTextIds, setSelectedTextIds,
     activeTool, addTextAtPosition,
     previewKey, videoElRef,
+    snapToGrid, GRID_STEP,
+    pushHistory, undoCount, undo,
   } = useHookStore();
 
   const { timing, texts, curves, motionProfile, layout, accent } = hookConfig;
@@ -875,20 +877,22 @@ export default function HookOverlay() {
   };
 
   // ── Position change — multi-drag applies delta to all selected ────────────
+  const snapVal = (v) => snapToGrid ? Math.round(v / GRID_STEP) * GRID_STEP : v;
+
   const handlePositionChange = (id, newX, newY, dX = 0, dY = 0) => {
     if (selectedTextIds.length > 1 && selectedTextIds.includes(id)) {
       setHookConfig((prev) => ({
         ...prev,
         texts: prev.texts.map((t) =>
           selectedTextIds.includes(t.id)
-            ? { ...t, x: Math.max(0, Math.min(100, t.x + dX)), y: Math.max(0, Math.min(100, t.y + dY)) }
+            ? { ...t, x: snapVal(Math.max(0, Math.min(100, t.x + dX))), y: snapVal(Math.max(0, Math.min(100, t.y + dY))) }
             : t
         ),
       }));
     } else {
       setHookConfig((prev) => ({
         ...prev,
-        texts: prev.texts.map((t) => t.id === id ? { ...t, x: newX, y: newY } : t),
+        texts: prev.texts.map((t) => t.id === id ? { ...t, x: snapVal(newX), y: snapVal(newY) } : t),
       }));
     }
   };
@@ -961,6 +965,99 @@ export default function HookOverlay() {
     setSelectedTextIds([]);
   };
 
+  // ── Alignment helper (multi-select) ────────────────────────────────────────
+  const alignLayers = (mode) => {
+    if (selectedTextIds.length < 2) return;
+    const sel  = hookConfig.texts.filter((t) => selectedTextIds.includes(t.id));
+    const xs   = sel.map((t) => t.x);
+    const ys   = sel.map((t) => t.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const cX   = (minX + maxX) / 2;
+    const cY   = (minY + maxY) / 2;
+    setHookConfig((prev) => ({
+      ...prev,
+      texts: prev.texts.map((t) => {
+        if (!selectedTextIds.includes(t.id)) return t;
+        switch (mode) {
+          case 'left':    return { ...t, x: minX };
+          case 'centerH': return { ...t, x: cX   };
+          case 'right':   return { ...t, x: maxX };
+          case 'top':     return { ...t, y: minY };
+          case 'centerV': return { ...t, y: cY   };
+          case 'bottom':  return { ...t, y: maxY };
+          default:        return t;
+        }
+      }),
+    }));
+  };
+
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const selIds = selectedTextIds.length > 0 ? selectedTextIds : (selectedTextId ? [selectedTextId] : []);
+
+      // Delete / Backspace — remove selected layers
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selIds.length > 0) {
+        e.preventDefault();
+        setHookConfig((prev) => ({ ...prev, texts: prev.texts.filter((t) => !selIds.includes(t.id)) }));
+        setSelectedTextId(null);
+        setSelectedTextIds([]);
+        return;
+      }
+
+      // Arrow nudge — ±1% or ±5% with Shift
+      const isArrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key);
+      if (isArrow && selIds.length > 0) {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp'   ? -step : e.key === 'ArrowDown'  ? step : 0;
+        setHookConfig((prev) => ({
+          ...prev,
+          texts: prev.texts.map((t) =>
+            selIds.includes(t.id)
+              ? { ...t, x: Math.max(0, Math.min(100, t.x + dx)), y: Math.max(0, Math.min(100, t.y + dy)) }
+              : t
+          ),
+        }));
+        return;
+      }
+
+      // Ctrl+D — duplicate selected
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        if (selIds.length === 0) return;
+        setHookConfig((prev) => {
+          const duped = prev.texts
+            .filter((t) => selIds.includes(t.id))
+            .map((t) => ({
+              ...t,
+              id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              x:  Math.min(100, t.x + 3),
+              y:  Math.min(100, t.y + 3),
+            }));
+          return { ...prev, texts: [...prev.texts, ...duped] };
+        });
+        return;
+      }
+
+      // Ctrl+A — select all visible layers
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        const allIds = hookConfig.texts.filter((t) => !t.hidden).map((t) => t.id);
+        if (allIds.length === 0) return;
+        setSelectedTextIds(allIds);
+        setSelectedTextId(allIds[allIds.length - 1]);
+        return;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTextId, selectedTextIds, hookConfig.texts]);
+
   const cycleCaseSelected = () => {
     if (!selectedText) return;
     const order = ['upper', 'none', 'title'];
@@ -995,7 +1092,7 @@ export default function HookOverlay() {
             whiteSpace: 'nowrap',
           }}
         >
-          {/* Multi-select badge */}
+          {/* Multi-select badge + alignment tools */}
           {isMultiMode && (
             <>
               <span style={{
@@ -1005,6 +1102,16 @@ export default function HookOverlay() {
               }}>
                 {selectedTextIds.length} layers
               </span>
+              <FTDivider />
+              {/* Horizontal alignment */}
+              <FTBtn title="Align left edges"    onClick={() => alignLayers('left')}>⇤</FTBtn>
+              <FTBtn title="Center horizontally" onClick={() => alignLayers('centerH')}>↔</FTBtn>
+              <FTBtn title="Align right edges"   onClick={() => alignLayers('right')}>⇥</FTBtn>
+              <FTDivider />
+              {/* Vertical alignment */}
+              <FTBtn title="Align top edges"     onClick={() => alignLayers('top')}>⇡</FTBtn>
+              <FTBtn title="Center vertically"   onClick={() => alignLayers('centerV')}>↕</FTBtn>
+              <FTBtn title="Align bottom edges"  onClick={() => alignLayers('bottom')}>⇣</FTBtn>
               <FTDivider />
             </>
           )}

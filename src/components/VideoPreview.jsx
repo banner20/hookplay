@@ -31,8 +31,9 @@ function FrameShell({ children, accent, enabled }) {
 }
 
 export default function VideoPreview() {
-  const { video, setVideo, hookConfig, activeTool, videoElRef } = useHookStore();
-  const videoRef = useRef(null);
+  const { video, setVideo, hookConfig, activeTool, videoElRef, canvasZoom, setCanvasZoom, showGrid, CANVAS_ZOOM_LEVELS, GRID_STEP } = useHookStore();
+  const videoRef    = useRef(null);
+  const wrapperRef  = useRef(null);
 
   // Keep the store's videoElRef in sync so KaraokeText can read currentTime via rAF
   React.useEffect(() => {
@@ -70,27 +71,58 @@ export default function VideoPreview() {
     }
   }, [video.currentTime, video.playing]);
 
+  // Ctrl + scroll → zoom canvas
+  React.useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const dir = e.deltaY < 0 ? 1 : -1;
+      setCanvasZoom((z) => {
+        const idx  = CANVAS_ZOOM_LEVELS.findIndex((l) => l >= z - 0.001);
+        const next = dir > 0
+          ? CANVAS_ZOOM_LEVELS[Math.min(idx + 1, CANVAS_ZOOM_LEVELS.length - 1)]
+          : CANVAS_ZOOM_LEVELS[Math.max(idx - 1, 0)];
+        return next ?? z;
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [setCanvasZoom, CANVAS_ZOOM_LEVELS]);
+
   const accent = hookConfig.accent || '#6366f1';
 
   return (
     <div
+      ref={wrapperRef}
       className="video-wrapper"
       style={{
-        background: `radial-gradient(circle at 50% 18%, ${accent}20 0%, rgba(0,0,0,0) 55%), #000`,
+        background: `radial-gradient(circle at 50% 18%, ${accent}20 0%, rgba(0,0,0,0) 55%), #0a0a0f`,
         boxShadow: `0 0 0 1px var(--border-subtle), 0 24px 60px ${accent}18`,
-        // Crosshair when text tool active
         cursor: activeTool === 'text' ? 'crosshair' : 'default',
+        overflow: 'hidden',
       }}
     >
       <FrameShell accent={accent} enabled={video.showPhoneFrame}>
-        {/* This wrapper is always relative so HookOverlay can be absolutely positioned */}
+        {/* Canvas content — receives zoom transform */}
         <div style={{
           position: 'relative',
           width: '100%',
           height: '100%',
-          overflow: 'hidden',
           borderRadius: video.showPhoneFrame ? 28 : 0,
           background: '#000',
+          transform: canvasZoom !== 1 ? `scale(${canvasZoom})` : undefined,
+          transformOrigin: 'center center',
+          transition: 'transform 0.12s ease',
+          // Grid overlay
+          ...(showGrid && {
+            backgroundImage: [
+              `linear-gradient(rgba(99,102,241,0.18) 1px, transparent 1px)`,
+              `linear-gradient(90deg, rgba(99,102,241,0.18) 1px, transparent 1px)`,
+            ].join(', '),
+            backgroundSize: `${GRID_STEP}% ${GRID_STEP}%`,
+          }),
         }}>
           {/* Video OR upload zone */}
           {!video.url ? (

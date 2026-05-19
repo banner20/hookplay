@@ -1050,6 +1050,13 @@ export function HookProvider({ children }) {
   const [previewKey, setPreviewKey] = useState(0);
   const triggerPreview = () => setPreviewKey((k) => k + 1);
 
+  // ── Canvas viewport ───────────────────────────────────────────────────────
+  const [canvasZoom, setCanvasZoom] = useState(1);
+  const [showGrid, setShowGrid]     = useState(false);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const CANVAS_ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+  const GRID_STEP = 5; // percent
+
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [projectSaveStatus, setProjectSaveStatus] = useState('idle'); // 'idle'|'saving'|'saved'|'error'
   const saveTimerRef = useRef(null);
@@ -1338,6 +1345,14 @@ export function HookProvider({ children }) {
       projectSaveStatus,
       saveNewProject,
       loadProjectById,
+      canvasZoom,
+      setCanvasZoom,
+      showGrid,
+      setShowGrid,
+      snapToGrid,
+      setSnapToGrid,
+      CANVAS_ZOOM_LEVELS,
+      GRID_STEP,
     }}>
       {children}
     </HookContext.Provider>
