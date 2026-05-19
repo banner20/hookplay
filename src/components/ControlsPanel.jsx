@@ -4,9 +4,10 @@ import {
   BookmarkCheck, BookmarkPlus, ChevronDown, ChevronRight,
   Download, Plus, RotateCcw, Sparkles, Trash2,
   Undo2, Eye, EyeOff, Copy, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight,
-  LayoutGrid, PenLine, Palette, Gauge, Mic,
+  LayoutGrid, PenLine, Palette, Gauge, Mic, Layers,
 } from 'lucide-react';
 import TranscribePanel from './TranscribePanel';
+import LayerPanel from './LayerPanel';
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
 
@@ -128,6 +129,7 @@ const STEPS = [
   { id: 'copy',       label: 'Copy',    Icon: PenLine    },
   { id: 'style',      label: 'Style',   Icon: Palette    },
   { id: 'motion',     label: 'Motion',  Icon: Gauge      },
+  { id: 'layers',     label: 'Layers',  Icon: Layers     },
 ];
 
 function StepNav({ step, setStep }) {
@@ -2102,6 +2104,7 @@ export default function ControlsPanel({ onExport }) {
         {sidebarTab === 'style'      && <StyleStep />}
         {sidebarTab === 'motion'     && <MotionStep />}
         {sidebarTab === 'transcribe' && <TranscribePanel />}
+        {sidebarTab === 'layers'     && <LayerPanel />}
       </div>
       <SidebarFooter onExport={onExport} />
     </div>

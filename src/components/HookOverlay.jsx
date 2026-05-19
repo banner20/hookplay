@@ -800,12 +800,154 @@ function DraggableLayer({ text, containerRef, isSelected, isMultiSelected, accen
   );
 }
 
+// ─── Draggable image layer ──────────────────────────────────────────────────
+function DraggableImageLayer({ layer, containerRef, isSelected, accent, activeTool, onSelect, onPositionChange, onWidthChange }) {
+  const divRef = useRef(null);
+  const drag   = useRef({ active: false, startX: 0, startY: 0, origX: 0, origY: 0, liveX: 0, liveY: 0 });
+
+  const handlePointerDown = (e) => {
+    e.stopPropagation();
+    onSelect(layer.id);
+    if (activeTool === 'text' || layer.locked) return;
+    drag.current = { active: true, startX: e.clientX, startY: e.clientY, origX: layer.x, origY: layer.y, liveX: layer.x, liveY: layer.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const handlePointerMove = (e) => {
+    if (!drag.current.active || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const newX = Math.max(0, Math.min(100, drag.current.origX + ((e.clientX - drag.current.startX) / rect.width)  * 100));
+    const newY = Math.max(0, Math.min(100, drag.current.origY + ((e.clientY - drag.current.startY) / rect.height) * 100));
+    drag.current.liveX = newX; drag.current.liveY = newY;
+    if (divRef.current) { divRef.current.style.left = `${newX}%`; divRef.current.style.top = `${newY}%`; }
+  };
+  const handlePointerUp = () => {
+    if (!drag.current.active) return;
+    drag.current.active = false;
+    onPositionChange(layer.id, drag.current.liveX, drag.current.liveY);
+  };
+
+  const handleCornerDrag = (e) => {
+    e.stopPropagation();
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const startX = e.clientX; const startW = layer.width;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const onMove = (mv) => onWidthChange(layer.id, Math.max(5, Math.min(100, startW + ((mv.clientX - startX) / rect.width) * 100)));
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  return (
+    <div ref={divRef} style={{
+      position: 'absolute', left: `${layer.x}%`, top: `${layer.y}%`,
+      width: `${layer.width}%`,
+      transform: `translate(-50%, -50%) rotate(${layer.rotation ?? 0}deg)`,
+      zIndex: isSelected ? 30 : 18, opacity: layer.opacity ?? 1,
+      mixBlendMode: layer.blendMode || 'normal',
+      border: isSelected ? `2px dashed ${accent}` : '2px dashed transparent',
+      boxSizing: 'content-box', touchAction: 'none', userSelect: 'none', pointerEvents: 'auto',
+      cursor: activeTool === 'text' ? 'crosshair' : 'grab',
+    }}
+      onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}
+    >
+      <img src={layer.src} alt={layer.name} draggable={false}
+        style={{ width: '100%', height: 'auto', display: 'block', pointerEvents: 'none', userSelect: 'none' }} />
+      {isSelected && (
+        <div onPointerDown={handleCornerDrag} style={{
+          position: 'absolute', right: -8, bottom: -8, width: 14, height: 14,
+          background: accent, borderRadius: '50%', cursor: 'se-resize', zIndex: 40,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+        }} />
+      )}
+    </div>
+  );
+}
+
+// ─── Draggable shape layer ──────────────────────────────────────────────────
+function DraggableShapeLayer({ layer, containerRef, isSelected, accent, activeTool, onSelect, onPositionChange, onSizeChange }) {
+  const divRef = useRef(null);
+  const drag   = useRef({ active: false, startX: 0, startY: 0, origX: 0, origY: 0, liveX: 0, liveY: 0 });
+
+  const handlePointerDown = (e) => {
+    e.stopPropagation();
+    onSelect(layer.id);
+    if (activeTool === 'text' || layer.locked) return;
+    drag.current = { active: true, startX: e.clientX, startY: e.clientY, origX: layer.x, origY: layer.y, liveX: layer.x, liveY: layer.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const handlePointerMove = (e) => {
+    if (!drag.current.active || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const newX = Math.max(0, Math.min(100, drag.current.origX + ((e.clientX - drag.current.startX) / rect.width)  * 100));
+    const newY = Math.max(0, Math.min(100, drag.current.origY + ((e.clientY - drag.current.startY) / rect.height) * 100));
+    drag.current.liveX = newX; drag.current.liveY = newY;
+    if (divRef.current) { divRef.current.style.left = `${newX}%`; divRef.current.style.top = `${newY}%`; }
+  };
+  const handlePointerUp = () => {
+    if (!drag.current.active) return;
+    drag.current.active = false;
+    onPositionChange(layer.id, drag.current.liveX, drag.current.liveY);
+  };
+
+  const handleCornerDrag = (e) => {
+    e.stopPropagation();
+    if (!containerRef.current) return;
+    const rect  = containerRef.current.getBoundingClientRect();
+    const startX = e.clientX; const startY = e.clientY;
+    const startW = layer.width; const startH = layer.height;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const onMove = (mv) => onSizeChange(layer.id,
+      Math.max(4, Math.min(100, startW + ((mv.clientX - startX) / rect.width)  * 100)),
+      Math.max(2, Math.min(100, startH + ((mv.clientY - startY) / rect.height) * 100)),
+    );
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  const shapeStyle = {
+    width: '100%', height: '100%',
+    background: `rgba(${parseInt(layer.fill?.slice(1,3)??'99',16)},${parseInt(layer.fill?.slice(3,5)??'66',16)},${parseInt(layer.fill?.slice(5,7)??'f1',16)},${layer.fillOpacity ?? 0.85})`,
+    borderRadius: layer.shape === 'circle' ? '50%' : layer.shape === 'line' ? 0 : `${layer.borderRadius ?? 8}px`,
+    ...(layer.hasStroke ? { border: `${layer.strokeWidth ?? 2}px solid ${layer.strokeColor ?? '#ffffff'}` } : {}),
+  };
+
+  const isLine = layer.shape === 'line';
+
+  return (
+    <div ref={divRef} style={{
+      position: 'absolute', left: `${layer.x}%`, top: `${layer.y}%`,
+      width: `${layer.width}%`, height: isLine ? '3px' : `${layer.height ?? 14}%`,
+      transform: `translate(-50%, -50%) rotate(${layer.rotation ?? 0}deg)`,
+      zIndex: isSelected ? 30 : 17, opacity: layer.opacity ?? 1,
+      mixBlendMode: layer.blendMode || 'normal',
+      border: isSelected ? `2px dashed ${accent}` : '2px dashed transparent',
+      boxSizing: 'content-box', touchAction: 'none', userSelect: 'none', pointerEvents: 'auto',
+      cursor: activeTool === 'text' ? 'crosshair' : 'grab',
+    }}
+      onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}
+    >
+      <div style={{ ...shapeStyle, width: '100%', height: isLine ? '3px' : '100%' }} />
+      {isSelected && !isLine && (
+        <div onPointerDown={handleCornerDrag} style={{
+          position: 'absolute', right: -8, bottom: -8, width: 14, height: 14,
+          background: accent, borderRadius: '50%', cursor: 'se-resize', zIndex: 40,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+        }} />
+      )}
+    </div>
+  );
+}
+
 // ─── Main overlay ──────────────────────────────────────────────────────────
 export default function HookOverlay() {
   const {
     appMode, video, hookConfig, setHookConfig,
     selectedTextId, setSelectedTextId,
     selectedTextIds, setSelectedTextIds,
+    selectedLayerId, setSelectedLayerId,
+    selectedLayerType, setSelectedLayerType,
     activeTool, addTextAtPosition,
     previewKey, videoElRef,
     snapToGrid, GRID_STEP,
@@ -938,6 +1080,8 @@ export default function HookOverlay() {
     } else {
       setSelectedTextId(null);
       setSelectedTextIds([]);
+      setSelectedLayerId(null);
+      setSelectedLayerType(null);
     }
   };
 
@@ -1196,6 +1340,46 @@ export default function HookOverlay() {
           >✕</FTBtn>
         </div>
       )}
+      {/* Image layers */}
+      {(hookConfig.images ?? []).filter(l => !l.hidden).map((img) => (
+        <DraggableImageLayer
+          key={img.id}
+          layer={img}
+          containerRef={containerRef}
+          isSelected={selectedLayerId === img.id && selectedLayerType === 'image'}
+          accent={accent}
+          activeTool={activeTool}
+          onSelect={(id) => {
+            setSelectedLayerId(id); setSelectedLayerType('image');
+            setSelectedTextId(null); setSelectedTextIds([]);
+          }}
+          onPositionChange={(id, x, y) =>
+            setHookConfig((prev) => ({ ...prev, images: (prev.images ?? []).map((l) => l.id === id ? { ...l, x, y } : l) }))}
+          onWidthChange={(id, w) =>
+            setHookConfig((prev) => ({ ...prev, images: (prev.images ?? []).map((l) => l.id === id ? { ...l, width: w } : l) }))}
+        />
+      ))}
+
+      {/* Shape layers */}
+      {(hookConfig.shapes ?? []).filter(l => !l.hidden).map((shp) => (
+        <DraggableShapeLayer
+          key={shp.id}
+          layer={shp}
+          containerRef={containerRef}
+          isSelected={selectedLayerId === shp.id && selectedLayerType === 'shape'}
+          accent={accent}
+          activeTool={activeTool}
+          onSelect={(id) => {
+            setSelectedLayerId(id); setSelectedLayerType('shape');
+            setSelectedTextId(null); setSelectedTextIds([]);
+          }}
+          onPositionChange={(id, x, y) =>
+            setHookConfig((prev) => ({ ...prev, shapes: (prev.shapes ?? []).map((l) => l.id === id ? { ...l, x, y } : l) }))}
+          onSizeChange={(id, w, h) =>
+            setHookConfig((prev) => ({ ...prev, shapes: (prev.shapes ?? []).map((l) => l.id === id ? { ...l, width: w, height: h } : l) }))}
+        />
+      ))}
+
       <AnimatePresence>
         {showTexts && texts.map((text, originalIdx) => {
           const stagger = motionProfile?.stagger ?? 0.15;

@@ -974,6 +974,8 @@ const createPresetConfig = (preset) => deepClone({
   motionProfile: preset.motionProfile,
   intensity: preset.intensity,
   texts: preset.texts,
+  images: preset.images ?? [],
+  shapes: preset.shapes ?? [],
   design: preset.design,
 });
 
@@ -1002,6 +1004,8 @@ const createBlankHookConfig = () => ({
   },
   intensity: { scale: 'medium', distance: 'medium', shake: 'off' },
   texts: [],
+  images: [],
+  shapes: [],
   design: { primaryColor: '#ffffff', punchColor: '#6366f1', bgColor: 'rgba(0, 0, 0, 0.8)' },
 });
 
@@ -1066,21 +1070,44 @@ export function HookProvider({ children }) {
   const videoElRef = useRef(null);
 
   const hookHistoryRef = useRef([]);
+  const hookFutureRef  = useRef([]);
   const [undoCount, setUndoCount] = useState(0);
+  const [redoCount, setRedoCount] = useState(0);
   const pushHistory = useCallback(() => {
     setHookConfig((current) => {
       hookHistoryRef.current = [...hookHistoryRef.current.slice(-40), deepClone(current)];
+      hookFutureRef.current  = [];
       setUndoCount(hookHistoryRef.current.length);
-      return current; // no actual change, just capture
+      setRedoCount(0);
+      return current;
     });
   }, []);
   const undo = useCallback(() => {
     if (hookHistoryRef.current.length === 0) return;
-    const prev = hookHistoryRef.current.at(-1);
-    hookHistoryRef.current = hookHistoryRef.current.slice(0, -1);
-    setUndoCount(hookHistoryRef.current.length);
-    setHookConfig(prev);
+    setHookConfig((current) => {
+      const prev = hookHistoryRef.current.at(-1);
+      hookHistoryRef.current = hookHistoryRef.current.slice(0, -1);
+      hookFutureRef.current  = [deepClone(current), ...hookFutureRef.current.slice(0, 39)];
+      setUndoCount(hookHistoryRef.current.length);
+      setRedoCount(hookFutureRef.current.length);
+      return prev;
+    });
   }, []);
+  const redo = useCallback(() => {
+    if (hookFutureRef.current.length === 0) return;
+    setHookConfig((current) => {
+      const next = hookFutureRef.current[0];
+      hookFutureRef.current  = hookFutureRef.current.slice(1);
+      hookHistoryRef.current = [...hookHistoryRef.current, deepClone(current)];
+      setUndoCount(hookHistoryRef.current.length);
+      setRedoCount(hookFutureRef.current.length);
+      return next;
+    });
+  }, []);
+
+  // ── Non-text layer selection ───────────────────────────────────────────────
+  const [selectedLayerId,   setSelectedLayerId]   = useState(null);
+  const [selectedLayerType, setSelectedLayerType] = useState(null); // 'image'|'shape'|null
 
 
   useEffect(() => {
@@ -1234,6 +1261,44 @@ export function HookProvider({ children }) {
     setSidebarTab('style');
   };
 
+  const addImageLayer = useCallback((src, name, aspectRatio) => {
+    const id = `img_${Date.now()}`;
+    setHookConfig((prev) => ({
+      ...prev,
+      images: [...(prev.images ?? []), {
+        id, layerType: 'image', src, name: name ?? 'image',
+        x: 50, y: 50, width: 35, aspectRatio: aspectRatio ?? 1,
+        opacity: 1, rotation: 0, blendMode: 'normal',
+        locked: false, hidden: false, zOrder: Date.now(),
+      }],
+    }));
+    setSelectedLayerId(id);
+    setSelectedLayerType('image');
+    setSelectedTextId(null);
+    setSelectedTextIds([]);
+    return id;
+  }, []);
+
+  const addShapeLayer = useCallback((shapeType) => {
+    const id = `shp_${Date.now()}`;
+    setHookConfig((prev) => ({
+      ...prev,
+      shapes: [...(prev.shapes ?? []), {
+        id, layerType: 'shape', shape: shapeType ?? 'rect',
+        name: shapeType ?? 'rect',
+        x: 50, y: 50, width: 25, height: 14,
+        fill: prev.accent ?? '#6366f1', fillOpacity: 0.85,
+        strokeColor: '#ffffff', strokeWidth: 2, hasStroke: false,
+        opacity: 1, rotation: 0, borderRadius: shapeType === 'circle' ? 999 : 8,
+        locked: false, hidden: false, zOrder: Date.now(),
+      }],
+    }));
+    setSelectedLayerId(id);
+    setSelectedLayerType('shape');
+    setSelectedTextId(null);
+    setSelectedTextIds([]);
+  }, []);
+
   const deletePreset = (presetId) => {
     const preset = customPresets.find((entry) => entry.id === presetId);
     if (!preset) return;
@@ -1331,6 +1396,14 @@ export function HookProvider({ children }) {
       undoCount,
       pushHistory,
       undo,
+      redo,
+      redoCount,
+      selectedLayerId,
+      setSelectedLayerId,
+      selectedLayerType,
+      setSelectedLayerType,
+      addImageLayer,
+      addShapeLayer,
       presetLibrary,
       activePreset,
       activePresetId,

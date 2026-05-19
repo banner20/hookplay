@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { MousePointer2, Type, LayoutGrid, ZoomIn, ZoomOut, Magnet } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { MousePointer2, Type, LayoutGrid, ZoomIn, ZoomOut, Magnet, Image, Square, Circle, Minus } from 'lucide-react';
 import { useHookStore } from '../context/HookContext';
 
 export default function CanvasToolbar() {
@@ -8,7 +8,30 @@ export default function CanvasToolbar() {
     canvasZoom, setCanvasZoom, CANVAS_ZOOM_LEVELS,
     showGrid, setShowGrid,
     snapToGrid, setSnapToGrid,
+    addImageLayer, addShapeLayer,
   } = useHookStore();
+
+  const fileInputRef = useRef(null);
+  const [showShapes, setShowShapes] = useState(false);
+
+  const handleImageFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => addImageLayer(url, file.name, img.naturalWidth / img.naturalHeight);
+    img.src = url;
+    e.target.value = '';
+  };
+
+  useEffect(() => {
+    if (!showShapes) return;
+    const onMouseDown = (e) => {
+      setShowShapes(false);
+    };
+    window.addEventListener('mousedown', onMouseDown);
+    return () => window.removeEventListener('mousedown', onMouseDown);
+  }, [showShapes]);
 
   const stepZoom = (dir) => {
     setCanvasZoom((z) => {
@@ -86,6 +109,47 @@ export default function CanvasToolbar() {
         <Magnet size={13} strokeWidth={2} />
         <span>Snap</span>
       </button>
+
+      <div className="canvas-toolbar-divider" />
+
+      {/* Image upload */}
+      <button className="canvas-tool-btn" onClick={() => fileInputRef.current?.click()} title="Add image (I)">
+        <Image size={13} strokeWidth={2} />
+        <span>Image</span>
+      </button>
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} />
+
+      {/* Shape tool */}
+      <div style={{ position: 'relative' }}>
+        <button className="canvas-tool-btn" onClick={(e) => { e.stopPropagation(); setShowShapes(v => !v); }} title="Add shape">
+          <Square size={13} strokeWidth={2} />
+          <span>Shape</span>
+        </button>
+        {showShapes && (
+          <div style={{
+            position: 'absolute', top: '100%', left: 0, zIndex: 100, marginTop: 4,
+            background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
+            borderRadius: 8, padding: 4, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 90,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          }}>
+            {[
+              { type: 'rect',   icon: <Square size={12} />, label: 'Rectangle' },
+              { type: 'circle', icon: <Circle size={12} />, label: 'Ellipse' },
+              { type: 'line',   icon: <Minus  size={12} />, label: 'Line' },
+            ].map(({ type, icon, label }) => (
+              <button key={type} onClick={(e) => { e.stopPropagation(); addShapeLayer(type); setShowShapes(false); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'none',
+                  border: 'none', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: 6, fontSize: 12,
+                  textAlign: 'left', transition: 'background 0.1s' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+              >
+                {icon} {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="canvas-toolbar-divider" />
 
