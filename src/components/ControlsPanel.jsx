@@ -1123,7 +1123,7 @@ const BG_OPTIONS = [
 ];
 
 function StyleStep() {
-  const { hookConfig, setHookConfig, selectedTextId, setSelectedTextId, selectedTextIds, setSelectedTextIds, pushHistory, undo, undoCount } = useHookStore();
+  const { hookConfig, setHookConfig, selectedTextId, setSelectedTextId, selectedTextIds, setSelectedTextIds, pushHistory, undo, undoCount, selectedLayerId, selectedLayerType } = useHookStore();
   const [presetsOpen, setPresetsOpen] = useState(true);
   const [wordColorsOpen, setWordColorsOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -1142,6 +1142,84 @@ function StyleStep() {
 
   const bgOn = text && text.bgColor && text.bgColor !== 'transparent';
   const activeBgStyle = bgOn ? (text.bgStyle || 'pill') : 'none';
+
+  const selectedShape = selectedLayerType === 'shape'
+    ? (hookConfig.shapes ?? []).find((s) => s.id === selectedLayerId) ?? null
+    : null;
+
+  const updateShape = (field, val) => {
+    if (!selectedLayerId) return;
+    setHookConfig((prev) => ({
+      ...prev,
+      shapes: (prev.shapes ?? []).map((s) => s.id === selectedLayerId ? { ...s, [field]: val } : s),
+    }));
+  };
+
+  if (selectedShape) {
+    return (
+      <div className="tab-panel">
+        <SectionLabel>Shape — {selectedShape.name || selectedShape.shape}</SectionLabel>
+
+        <GroupHeader>Fill</GroupHeader>
+        <div className="ctrl-row">
+          <Label>Color</Label>
+          <ColorSwatch
+            value={selectedShape.fill && selectedShape.fill !== 'transparent' ? selectedShape.fill : '#6366f1'}
+            onChange={(v) => updateShape('fill', v)}
+          />
+        </div>
+        <Slider label="Fill Opacity" value={selectedShape.fillOpacity ?? 0.85} min={0} max={1} step={0.01}
+          onChange={(v) => updateShape('fillOpacity', v)} />
+
+        <Divider />
+        <GroupHeader>Stroke</GroupHeader>
+        <div className="ctrl-row">
+          <Label>Stroke</Label>
+          <PillToggle checked={!!(selectedShape.hasStroke)} onChange={(e) => updateShape('hasStroke', e.target.checked)} label="" />
+        </div>
+        {selectedShape.hasStroke && (<>
+          <div className="ctrl-row">
+            <Label>Color</Label>
+            <ColorSwatch value={selectedShape.strokeColor ?? '#ffffff'} onChange={(v) => updateShape('strokeColor', v)} />
+          </div>
+          <Slider label="Width" value={selectedShape.strokeWidth ?? 2} min={1} max={20} step={1} unit="px"
+            onChange={(v) => updateShape('strokeWidth', v)} />
+        </>)}
+
+        {(selectedShape.shape === 'rect') && (<>
+          <Divider />
+          <GroupHeader>Corners</GroupHeader>
+          <Slider label="Border Radius" value={selectedShape.borderRadius ?? 8} min={0} max={999} step={1} unit="px"
+            onChange={(v) => updateShape('borderRadius', v)} />
+        </>)}
+
+        <Divider />
+        <GroupHeader>Layer</GroupHeader>
+        <Slider label="Opacity" value={selectedShape.opacity ?? 1} min={0} max={1} step={0.01}
+          onChange={(v) => updateShape('opacity', v)} />
+        <Slider label="Rotation" value={selectedShape.rotation ?? 0} min={-180} max={180} step={1} unit="°"
+          onChange={(v) => updateShape('rotation', v)} />
+        <div className="ctrl-row">
+          <Label>Blend</Label>
+          <select className="ctrl-select" value={selectedShape.blendMode ?? 'normal'}
+            onChange={(e) => updateShape('blendMode', e.target.value)}>
+            {['normal','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','hard-light','soft-light','difference','exclusion'].map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
+
+        <Divider />
+        <GroupHeader>Size</GroupHeader>
+        <Slider label="Width" value={Math.round(selectedShape.width ?? 25)} min={2} max={100} step={1} unit="%"
+          onChange={(v) => updateShape('width', v)} />
+        {selectedShape.shape !== 'line' && (
+          <Slider label="Height" value={Math.round(selectedShape.height ?? 14)} min={1} max={100} step={1} unit="%"
+            onChange={(v) => updateShape('height', v)} />
+        )}
+      </div>
+    );
+  }
 
   if (hookConfig.texts.length === 0) {
     return (

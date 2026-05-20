@@ -1279,18 +1279,19 @@ export function HookProvider({ children }) {
     return id;
   }, []);
 
-  const addShapeLayer = useCallback((shapeType) => {
+  const addShapeLayer = useCallback((shapeType, extraConfig = {}) => {
     const id = `shp_${Date.now()}`;
     setHookConfig((prev) => ({
       ...prev,
       shapes: [...(prev.shapes ?? []), {
         id, layerType: 'shape', shape: shapeType ?? 'rect',
-        name: shapeType ?? 'rect',
+        name: extraConfig.label ?? shapeType ?? 'rect',
         x: 50, y: 50, width: 25, height: 14,
         fill: prev.accent ?? '#6366f1', fillOpacity: 0.85,
         strokeColor: '#ffffff', strokeWidth: 2, hasStroke: false,
         opacity: 1, rotation: 0, borderRadius: shapeType === 'circle' ? 999 : 8,
         locked: false, hidden: false, zOrder: Date.now(),
+        ...extraConfig,
       }],
     }));
     setSelectedLayerId(id);

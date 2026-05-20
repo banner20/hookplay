@@ -864,6 +864,18 @@ function DraggableImageLayer({ layer, containerRef, isSelected, accent, activeTo
   );
 }
 
+// ─── SVG shape paths ────────────────────────────────────────────────────────
+const SVG_SHAPES = {
+  star:    'M50,5 L61,35 L95,35 L68,57 L79,91 L50,70 L21,91 L32,57 L5,35 L39,35 Z',
+  arrow:   'M5,35 L65,35 L65,15 L95,50 L65,85 L65,65 L5,65 Z',
+  diamond: 'M50,5 L95,50 L50,95 L5,50 Z',
+  hexagon: 'M25,5 L75,5 L100,50 L75,95 L25,95 L0,50 Z',
+  chevron: 'M5,5 L70,50 L5,95 L20,95 L85,50 L20,5 Z',
+  cross:   'M35,0 L65,0 L65,35 L100,35 L100,65 L65,65 L65,100 L35,100 L35,65 L0,65 L0,35 L35,35 Z',
+  badge:   'M50,2 L58,20 L78,20 L63,32 L68,50 L50,39 L32,50 L37,32 L22,20 L42,20 Z',
+  heart:   'M50,85 C5,52 5,15 50,35 C95,15 95,52 50,85 Z',
+};
+
 // ─── Draggable shape layer ──────────────────────────────────────────────────
 function DraggableShapeLayer({ layer, containerRef, isSelected, accent, activeTool, onSelect, onPositionChange, onSizeChange }) {
   const divRef = useRef(null);
@@ -893,9 +905,9 @@ function DraggableShapeLayer({ layer, containerRef, isSelected, accent, activeTo
   const handleCornerDrag = (e) => {
     e.stopPropagation();
     if (!containerRef.current) return;
-    const rect  = containerRef.current.getBoundingClientRect();
+    const rect   = containerRef.current.getBoundingClientRect();
     const startX = e.clientX; const startY = e.clientY;
-    const startW = layer.width; const startH = layer.height;
+    const startW = layer.width ?? 25; const startH = layer.height ?? 14;
     e.currentTarget.setPointerCapture(e.pointerId);
     const onMove = (mv) => onSizeChange(layer.id,
       Math.max(4, Math.min(100, startW + ((mv.clientX - startX) / rect.width)  * 100)),
@@ -906,36 +918,67 @@ function DraggableShapeLayer({ layer, containerRef, isSelected, accent, activeTo
     window.addEventListener('pointerup', onUp);
   };
 
-  const shapeStyle = {
-    width: '100%', height: '100%',
-    background: `rgba(${parseInt(layer.fill?.slice(1,3)??'99',16)},${parseInt(layer.fill?.slice(3,5)??'66',16)},${parseInt(layer.fill?.slice(5,7)??'f1',16)},${layer.fillOpacity ?? 0.85})`,
-    borderRadius: layer.shape === 'circle' ? '50%' : layer.shape === 'line' ? 0 : `${layer.borderRadius ?? 8}px`,
+  const isLine   = layer.shape === 'line';
+  const isSvg    = !!SVG_SHAPES[layer.shape];
+  const fillHex  = layer.fill ?? '#6366f1';
+  const fillOpacity = layer.fillOpacity ?? 0.85;
+
+  const wrapperStyle = {
+    position: 'absolute', left: `${layer.x}%`, top: `${layer.y}%`,
+    width: `${layer.width ?? 25}%`,
+    height: isLine ? '3px' : `${layer.height ?? 14}%`,
+    transform: `translate(-50%, -50%) rotate(${layer.rotation ?? 0}deg)`,
+    zIndex: isSelected ? 30 : 17, opacity: layer.opacity ?? 1,
+    mixBlendMode: layer.blendMode || 'normal',
+    outline: isSelected ? `2px dashed ${accent}` : '2px dashed transparent',
+    outlineOffset: '2px',
+    boxSizing: 'content-box', touchAction: 'none', userSelect: 'none',
+    pointerEvents: 'auto', cursor: activeTool === 'text' ? 'crosshair' : 'grab',
+  };
+
+  const resizeHandle = isSelected && !isLine ? (
+    <div onPointerDown={handleCornerDrag} style={{
+      position: 'absolute', right: -8, bottom: -8, width: 14, height: 14,
+      background: accent, borderRadius: '50%', cursor: 'se-resize', zIndex: 40,
+      boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+    }} />
+  ) : null;
+
+  if (isSvg) {
+    return (
+      <div ref={divRef} style={wrapperStyle}
+        onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}
+      >
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+          style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible' }}>
+          <path
+            d={SVG_SHAPES[layer.shape]}
+            fill={fillHex} fillOpacity={fillOpacity}
+            stroke={layer.hasStroke ? (layer.strokeColor ?? '#ffffff') : 'none'}
+            strokeWidth={layer.hasStroke ? (layer.strokeWidth ?? 2) : 0}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        {resizeHandle}
+      </div>
+    );
+  }
+
+  const cssStyle = {
+    width: '100%', height: isLine ? '3px' : '100%',
+    background: layer.shape === 'circle' || layer.shape === 'rect' || isLine
+      ? `rgba(${parseInt(fillHex.slice(1,3)||'99',16)},${parseInt(fillHex.slice(3,5)||'66',16)},${parseInt(fillHex.slice(5,7)||'f1',16)},${fillOpacity})`
+      : fillHex,
+    borderRadius: layer.shape === 'circle' ? '50%' : isLine ? 0 : `${layer.borderRadius ?? 8}px`,
     ...(layer.hasStroke ? { border: `${layer.strokeWidth ?? 2}px solid ${layer.strokeColor ?? '#ffffff'}` } : {}),
   };
 
-  const isLine = layer.shape === 'line';
-
   return (
-    <div ref={divRef} style={{
-      position: 'absolute', left: `${layer.x}%`, top: `${layer.y}%`,
-      width: `${layer.width}%`, height: isLine ? '3px' : `${layer.height ?? 14}%`,
-      transform: `translate(-50%, -50%) rotate(${layer.rotation ?? 0}deg)`,
-      zIndex: isSelected ? 30 : 17, opacity: layer.opacity ?? 1,
-      mixBlendMode: layer.blendMode || 'normal',
-      border: isSelected ? `2px dashed ${accent}` : '2px dashed transparent',
-      boxSizing: 'content-box', touchAction: 'none', userSelect: 'none', pointerEvents: 'auto',
-      cursor: activeTool === 'text' ? 'crosshair' : 'grab',
-    }}
+    <div ref={divRef} style={wrapperStyle}
       onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}
     >
-      <div style={{ ...shapeStyle, width: '100%', height: isLine ? '3px' : '100%' }} />
-      {isSelected && !isLine && (
-        <div onPointerDown={handleCornerDrag} style={{
-          position: 'absolute', right: -8, bottom: -8, width: 14, height: 14,
-          background: accent, borderRadius: '50%', cursor: 'se-resize', zIndex: 40,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
-        }} />
-      )}
+      <div style={cssStyle} />
+      {resizeHandle}
     </div>
   );
 }
