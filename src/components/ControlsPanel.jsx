@@ -129,7 +129,7 @@ const STEPS = [
   { id: 'copy',       label: 'Copy',    Icon: PenLine    },
   { id: 'style',      label: 'Style',   Icon: Palette    },
   { id: 'motion',     label: 'Motion',  Icon: Gauge      },
-  { id: 'layers',     label: 'Layers',  Icon: Layers     },
+  { id: 'layers',     label: 'Canvas',  Icon: Layers     },
 ];
 
 function StepNav({ step, setStep }) {
@@ -1155,6 +1155,18 @@ function StyleStep() {
     }));
   };
 
+  const selectedImage = selectedLayerType === 'image'
+    ? (hookConfig.images ?? []).find((img) => img.id === selectedLayerId) ?? null
+    : null;
+
+  const updateImage = (field, val) => {
+    if (!selectedLayerId) return;
+    setHookConfig((prev) => ({
+      ...prev,
+      images: (prev.images ?? []).map((img) => img.id === selectedLayerId ? { ...img, [field]: val } : img),
+    }));
+  };
+
   if (selectedShape) {
     return (
       <div className="tab-panel">
@@ -1217,6 +1229,129 @@ function StyleStep() {
           <Slider label="Height" value={Math.round(selectedShape.height ?? 14)} min={1} max={100} step={1} unit="%"
             onChange={(v) => updateShape('height', v)} />
         )}
+      </div>
+    );
+  }
+
+  if (selectedImage) {
+    const IMG_EFFECTS = [
+      { id: 'none',    label: 'None'    },
+      { id: 'blink',   label: 'Blink'   },
+      { id: 'fade',    label: 'Fade'    },
+      { id: 'pulse',   label: 'Pulse'   },
+      { id: 'float',   label: 'Float'   },
+      { id: 'bounce',  label: 'Bounce'  },
+      { id: 'shake',   label: 'Shake'   },
+      { id: 'wobble',  label: 'Wobble'  },
+      { id: 'swing',   label: 'Swing'   },
+      { id: 'spin',    label: 'Spin'    },
+      { id: 'jitter',  label: 'Jitter'  },
+      { id: 'zoom',    label: 'Zoom'    },
+      { id: 'breathe', label: 'Breathe' },
+      { id: 'glitch',  label: 'Glitch'  },
+      { id: 'flip',    label: 'Flip'    },
+      { id: 'neon',    label: 'Neon'    },
+    ];
+
+    const curEffect = selectedImage.effect ?? 'none';
+    const paperOn   = !!(selectedImage.paperCutout);
+    const pcStyle   = selectedImage.paperCutoutStyle ?? 'sticker';
+
+    return (
+      <div className="tab-panel">
+        <SectionLabel>Image / Logo</SectionLabel>
+
+        <GroupHeader>Animation Effect</GroupHeader>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 6 }}>
+          {IMG_EFFECTS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => updateImage('effect', id === 'none' ? null : id)}
+              style={{
+                padding: '6px 4px', borderRadius: 6, cursor: 'pointer',
+                fontSize: 10, fontWeight: 600,
+                background: curEffect === id || (id === 'none' && !curEffect)
+                  ? 'rgba(99,102,241,0.35)' : 'var(--bg-overlay)',
+                color: curEffect === id || (id === 'none' && !curEffect)
+                  ? '#a5b4fc' : 'var(--text-secondary)',
+                border: curEffect === id || (id === 'none' && !curEffect)
+                  ? '1px solid rgba(99,102,241,0.5)' : '1px solid var(--border-subtle)',
+                transition: 'all 0.1s',
+              }}
+            >{label}</button>
+          ))}
+        </div>
+
+        {curEffect && curEffect !== 'none' && (<>
+          <Slider label="Speed" value={selectedImage.effectSpeed ?? 1} min={0.25} max={4} step={0.25}
+            onChange={(v) => updateImage('effectSpeed', v)} />
+          <Slider label="Intensity" value={selectedImage.effectIntensity ?? 50} min={0} max={100} step={1} unit="%"
+            onChange={(v) => updateImage('effectIntensity', v)} />
+        </>)}
+
+        {curEffect === 'neon' && (<>
+          <div className="ctrl-row">
+            <Label>Neon Color</Label>
+            <ColorSwatch value={selectedImage.neonColor ?? '#6366f1'} onChange={(v) => updateImage('neonColor', v)} />
+          </div>
+        </>)}
+
+        <Divider />
+        <GroupHeader>Paper Cutout</GroupHeader>
+        <div className="ctrl-row">
+          <Label>Cutout Effect</Label>
+          <PillToggle checked={paperOn} onChange={(e) => updateImage('paperCutout', e.target.checked)} label="" />
+        </div>
+        {paperOn && (<>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 6 }}>
+            {[
+              { id: 'sticker',  label: 'Sticker'  },
+              { id: 'polaroid', label: 'Polaroid' },
+              { id: 'torn',     label: 'Torn'     },
+              { id: 'tape',     label: 'Tape'     },
+            ].map(({ id, label }) => (
+              <button key={id} onClick={() => updateImage('paperCutoutStyle', id)}
+                style={{
+                  padding: '6px 4px', borderRadius: 6, cursor: 'pointer',
+                  fontSize: 10, fontWeight: 600,
+                  background: pcStyle === id ? 'rgba(99,102,241,0.35)' : 'var(--bg-overlay)',
+                  color:      pcStyle === id ? '#a5b4fc' : 'var(--text-secondary)',
+                  border:     pcStyle === id ? '1px solid rgba(99,102,241,0.5)' : '1px solid var(--border-subtle)',
+                  transition: 'all 0.1s',
+                }}
+              >{label}</button>
+            ))}
+          </div>
+          <div className="ctrl-row">
+            <Label>Border Color</Label>
+            <ColorSwatch value={selectedImage.paperCutoutColor ?? '#ffffff'} onChange={(v) => updateImage('paperCutoutColor', v)} />
+          </div>
+          <Slider label="Border Size" value={selectedImage.paperCutoutSize ?? 12} min={2} max={40} step={1} unit="px"
+            onChange={(v) => updateImage('paperCutoutSize', v)} />
+          {pcStyle === 'sticker' && (
+            <div className="ctrl-row">
+              <Label>Rounded</Label>
+              <PillToggle checked={selectedImage.paperCutoutRounded !== false}
+                onChange={(e) => updateImage('paperCutoutRounded', e.target.checked)} label="" />
+            </div>
+          )}
+        </>)}
+
+        <Divider />
+        <GroupHeader>Layer</GroupHeader>
+        <Slider label="Opacity" value={selectedImage.opacity ?? 1} min={0} max={1} step={0.01}
+          onChange={(v) => updateImage('opacity', v)} />
+        <Slider label="Rotation" value={selectedImage.rotation ?? 0} min={-180} max={180} step={1} unit="°"
+          onChange={(v) => updateImage('rotation', v)} />
+        <div className="ctrl-row">
+          <Label>Blend Mode</Label>
+          <select className="ctrl-select" value={selectedImage.blendMode ?? 'normal'}
+            onChange={(e) => updateImage('blendMode', e.target.value)}>
+            {['normal','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','hard-light','soft-light','difference','exclusion'].map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
       </div>
     );
   }

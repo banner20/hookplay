@@ -800,6 +800,98 @@ function DraggableLayer({ text, containerRef, isSelected, isMultiSelected, accen
   );
 }
 
+// ─── Image effect helpers ───────────────────────────────────────────────────
+const IMG_EFFECT_DURATIONS = {
+  blink: 1.2, fade: 2.5, pulse: 2, float: 3, shake: 0.55,
+  spin: 3, wobble: 2.5, bounce: 1.1, glitch: 4, swing: 2.2,
+  jitter: 0.35, zoom: 3, breathe: 3, flip: 2.8, neon: 1.5,
+};
+
+function buildImgEffectKeyframes(layer) {
+  const { effect, effectIntensity, id } = layer;
+  if (!effect || effect === 'none') return null;
+  const amt = ((effectIntensity ?? 50) / 50);
+  const n = `ife-${id}`;
+  switch (effect) {
+    case 'blink':
+      return `@keyframes ${n}{0%,40%,60%,100%{opacity:1}50%{opacity:0}}`;
+    case 'fade':
+      return `@keyframes ${n}{0%,100%{opacity:1}50%{opacity:${Math.max(0, (1 - amt * 0.75)).toFixed(2)}}}`;
+    case 'pulse':
+      return `@keyframes ${n}{0%,100%{transform:scale(1)}50%{transform:scale(${(1 + 0.09 * amt).toFixed(3)})}}`;
+    case 'float':
+      return `@keyframes ${n}{0%,100%{transform:translateY(0)}50%{transform:translateY(-${Math.round(7*amt)}px)}}`;
+    case 'shake':
+      return `@keyframes ${n}{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-${Math.round(4*amt)}px)}20%,40%,60%,80%{transform:translateX(${Math.round(4*amt)}px)}}`;
+    case 'spin':
+      return `@keyframes ${n}{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`;
+    case 'wobble':
+      return `@keyframes ${n}{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-${(6*amt).toFixed(1)}deg)}75%{transform:rotate(${(6*amt).toFixed(1)}deg)}}`;
+    case 'bounce':
+      return `@keyframes ${n}{0%,100%{transform:translateY(0);animation-timing-function:cubic-bezier(.8,0,1,1)}50%{transform:translateY(-${Math.round(13*amt)}px);animation-timing-function:cubic-bezier(0,0,.2,1)}}`;
+    case 'glitch':
+      return `@keyframes ${n}{0%,88%,100%{filter:none;transform:translate(0,0)}89%{filter:hue-rotate(90deg) saturate(3);transform:translate(-4px,0)}91%{filter:hue-rotate(200deg) saturate(3);transform:translate(4px,0)}93%{filter:hue-rotate(300deg);transform:translate(0,3px)}95%{filter:none;transform:translate(0,0)}}`;
+    case 'swing':
+      return `@keyframes ${n}{0%,100%{transform:rotate(0deg);transform-origin:top center}20%{transform:rotate(${(11*amt).toFixed(1)}deg);transform-origin:top center}40%{transform:rotate(-${(7*amt).toFixed(1)}deg);transform-origin:top center}60%{transform:rotate(${(4*amt).toFixed(1)}deg);transform-origin:top center}80%{transform:rotate(-${(2*amt).toFixed(1)}deg);transform-origin:top center}}`;
+    case 'jitter':
+      return `@keyframes ${n}{0%,100%{transform:translate(0,0) rotate(0deg)}25%{transform:translate(-${Math.round(2*amt)}px,1px) rotate(-1deg)}50%{transform:translate(${Math.round(2*amt)}px,-${Math.round(2*amt)}px) rotate(1deg)}75%{transform:translate(${Math.round(2*amt)}px,1px) rotate(-.5deg)}}`;
+    case 'zoom':
+      return `@keyframes ${n}{0%,100%{transform:scale(1)}50%{transform:scale(${(1 + 0.15*amt).toFixed(3)})}}`;
+    case 'breathe':
+      return `@keyframes ${n}{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(${(1+0.05*amt).toFixed(3)});opacity:${Math.max(0.5, 1-0.2*amt).toFixed(2)}}}`;
+    case 'flip':
+      return `@keyframes ${n}{0%,44%,100%{transform:scaleX(1)}50%,94%{transform:scaleX(-1)}}`;
+    case 'neon': {
+      const nc = layer.neonColor ?? '#6366f1';
+      return `@keyframes ${n}{0%,100%{filter:drop-shadow(0 0 ${Math.round(6*amt)}px ${nc})}50%{filter:drop-shadow(0 0 ${Math.round(14*amt)}px ${nc}) drop-shadow(0 0 ${Math.round(28*amt)}px ${nc}88)}}`;
+    }
+    default:
+      return null;
+  }
+}
+
+function getImgEffectAnimation(layer) {
+  const { effect, effectSpeed, id } = layer;
+  if (!effect || effect === 'none') return {};
+  const n = `ife-${id}`;
+  const baseDur = IMG_EFFECT_DURATIONS[effect] ?? 2;
+  const dur = baseDur / Math.max(0.1, effectSpeed ?? 1);
+  const timings = { blink: 'step-end', shake: 'linear', spin: 'linear', jitter: 'linear', flip: 'linear', glitch: 'linear' };
+  return { animation: `${n} ${dur.toFixed(2)}s ${timings[effect] ?? 'ease-in-out'} infinite` };
+}
+
+function getPaperCutoutStyle(layer) {
+  if (!layer.paperCutout) return {};
+  const color = layer.paperCutoutColor ?? '#ffffff';
+  const size  = layer.paperCutoutSize ?? 12;
+  const style = layer.paperCutoutStyle ?? 'sticker';
+  if (style === 'sticker') return {
+    padding: `${size}px`,
+    background: color,
+    borderRadius: layer.paperCutoutRounded !== false ? `${Math.max(4, Math.round(size * 0.7))}px` : 0,
+    boxShadow: `3px 5px 14px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.3)`,
+  };
+  if (style === 'polaroid') return {
+    padding: `${size}px ${size}px ${Math.round(size*3.5)}px`,
+    background: color,
+    boxShadow: `4px 8px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.35)`,
+  };
+  if (style === 'torn') return {
+    padding: `${size}px`,
+    background: color,
+    borderRadius: '1px',
+    boxShadow: `2px 3px 0 rgba(0,0,0,0.15), 4px 6px 0 rgba(0,0,0,0.08), 0 8px 16px rgba(0,0,0,0.4)`,
+    filter: `drop-shadow(3px 4px 8px rgba(0,0,0,0.35))`,
+  };
+  if (style === 'tape') return {
+    padding: `${size*0.6}px ${size}px`,
+    background: color,
+    borderRadius: 3,
+    boxShadow: `2px 4px 10px rgba(0,0,0,0.4)`,
+  };
+  return {};
+}
+
 // ─── Draggable image layer ──────────────────────────────────────────────────
 function DraggableImageLayer({ layer, containerRef, isSelected, accent, activeTool, onSelect, onPositionChange, onWidthChange }) {
   const divRef = useRef(null);
@@ -838,6 +930,10 @@ function DraggableImageLayer({ layer, containerRef, isSelected, accent, activeTo
     window.addEventListener('pointerup', onUp);
   };
 
+  const kf   = buildImgEffectKeyframes(layer);
+  const anim = getImgEffectAnimation(layer);
+  const pcStyle = getPaperCutoutStyle(layer);
+
   return (
     <div ref={divRef} style={{
       position: 'absolute', left: `${layer.x}%`, top: `${layer.y}%`,
@@ -851,8 +947,15 @@ function DraggableImageLayer({ layer, containerRef, isSelected, accent, activeTo
     }}
       onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}
     >
-      <img src={layer.src} alt={layer.name} draggable={false}
-        style={{ width: '100%', height: 'auto', display: 'block', pointerEvents: 'none', userSelect: 'none' }} />
+      {kf && <style>{kf}</style>}
+      {/* Animation wrapper — transforms applied here so positioning transform is unaffected */}
+      <div style={{ ...anim, display: 'inline-block', width: '100%' }}>
+        {/* Paper cutout wrapper */}
+        <div style={{ ...pcStyle, display: 'inline-block', width: '100%', boxSizing: 'border-box' }}>
+          <img src={layer.src} alt={layer.name} draggable={false}
+            style={{ width: '100%', height: 'auto', display: 'block', pointerEvents: 'none', userSelect: 'none' }} />
+        </div>
+      </div>
       {isSelected && (
         <div onPointerDown={handleCornerDrag} style={{
           position: 'absolute', right: -8, bottom: -8, width: 14, height: 14,
