@@ -976,6 +976,7 @@ const createPresetConfig = (preset) => deepClone({
   texts: preset.texts,
   images: preset.images ?? [],
   shapes: preset.shapes ?? [],
+  captions: preset.captions ?? [],
   design: preset.design,
 });
 
@@ -1006,6 +1007,7 @@ const createBlankHookConfig = () => ({
   texts: [],
   images: [],
   shapes: [],
+  captions: [],
   design: { primaryColor: '#ffffff', punchColor: '#6366f1', bgColor: 'rgba(0, 0, 0, 0.8)' },
 });
 
@@ -1300,6 +1302,32 @@ export function HookProvider({ children }) {
     setSelectedTextIds([]);
   }, []);
 
+  const addCaptionLayer = useCallback((text = 'Type your caption here', x = 50, y = 75) => {
+    const id = `cap_${Date.now()}`;
+    setHookConfig((prev) => ({
+      ...prev,
+      captions: [...(prev.captions ?? []), {
+        id, layerType: 'caption',
+        text,
+        x, y,
+        captionStyle: 'impact-pop',
+        accentColor: prev.accent ?? '#6366f1',
+        font: 'Outfit',
+        fontSize: 36,
+        wpm: 120,
+        startTime: 0,
+        opacity: 1,
+        hidden: false,
+        zOrder: Date.now(),
+      }],
+    }));
+    setSelectedLayerId(id);
+    setSelectedLayerType('caption');
+    setSelectedTextId(null);
+    setSelectedTextIds([]);
+    return id;
+  }, []);
+
   const deletePreset = (presetId) => {
     const preset = customPresets.find((entry) => entry.id === presetId);
     if (!preset) return;
@@ -1405,6 +1433,7 @@ export function HookProvider({ children }) {
       setSelectedLayerType,
       addImageLayer,
       addShapeLayer,
+      addCaptionLayer,
       presetLibrary,
       activePreset,
       activePresetId,

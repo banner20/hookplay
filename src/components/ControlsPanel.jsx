@@ -1167,6 +1167,110 @@ function StyleStep() {
     }));
   };
 
+  const selectedCaption = selectedLayerType === 'caption'
+    ? (hookConfig.captions ?? []).find((c) => c.id === selectedLayerId) ?? null
+    : null;
+
+  const updateCaption = (field, val) => {
+    if (!selectedLayerId) return;
+    setHookConfig((prev) => ({
+      ...prev,
+      captions: (prev.captions ?? []).map((c) => c.id === selectedLayerId ? { ...c, [field]: val } : c),
+    }));
+  };
+
+  if (selectedCaption) {
+    const STYLE_PRESETS = [
+      { id: 'impact-pop',       label: 'Impact Pop',   preview: 'AW' },
+      { id: 'box-highlight',    label: 'Box Highlight', preview: 'AW' },
+      { id: 'karaoke',          label: 'Karaoke',       preview: 'AW' },
+      { id: 'neon-glow',        label: 'Neon Glow',     preview: 'AW' },
+      { id: 'stomp',            label: 'Stomp',         preview: 'A'  },
+      { id: 'glide',            label: 'Glide',         preview: 'AW' },
+      { id: 'whisper',          label: 'Whisper',       preview: 'AW' },
+      { id: 'chunky',           label: 'Chunky',        preview: 'AW' },
+      { id: 'split-color',      label: 'Split Color',   preview: 'AW' },
+      { id: 'fire',             label: 'Fire',          preview: 'AW' },
+      { id: 'minimal',          label: 'Minimal',       preview: 'AW' },
+      { id: 'underline-accent', label: 'Underline',     preview: 'AW' },
+    ];
+
+    return (
+      <div className="tab-panel">
+        <SectionLabel>Caption Track</SectionLabel>
+
+        <GroupHeader>Text</GroupHeader>
+        <textarea
+          value={selectedCaption.text ?? ''}
+          onChange={(e) => updateCaption('text', e.target.value)}
+          rows={3}
+          placeholder="Type your caption here..."
+          style={{
+            width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 8, color: '#fff', padding: '8px 10px', fontSize: 13, resize: 'vertical',
+            fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+          }}
+        />
+
+        <Divider />
+        <GroupHeader>Style</GroupHeader>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {STYLE_PRESETS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => updateCaption('captionStyle', s.id)}
+              style={{
+                padding: '7px 4px',
+                borderRadius: 8,
+                border: `1px solid ${selectedCaption.captionStyle === s.id ? 'rgba(99,102,241,0.8)' : 'rgba(255,255,255,0.1)'}`,
+                background: selectedCaption.captionStyle === s.id ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.04)',
+                color: selectedCaption.captionStyle === s.id ? '#a5b4fc' : 'rgba(255,255,255,0.65)',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', textAlign: 'center', lineHeight: 1.3,
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        <Divider />
+        <GroupHeader>Accent Color</GroupHeader>
+        <div className="ctrl-row">
+          <Label>Color</Label>
+          <ColorSwatch
+            value={selectedCaption.accentColor ?? '#6366f1'}
+            onChange={(v) => updateCaption('accentColor', v)}
+          />
+        </div>
+
+        <Divider />
+        <GroupHeader>Timing</GroupHeader>
+        <Slider label="Words per Minute" value={selectedCaption.wpm ?? 120} min={40} max={300} step={5} unit=" wpm"
+          onChange={(v) => updateCaption('wpm', v)} />
+        <Slider label="Start Time" value={selectedCaption.startTime ?? 0} min={0} max={30} step={0.1} unit="s"
+          onChange={(v) => updateCaption('startTime', v)} />
+
+        <Divider />
+        <GroupHeader>Typography</GroupHeader>
+        <div className="ctrl-row">
+          <Label>Font</Label>
+          <select className="ctrl-select" value={selectedCaption.font ?? 'Outfit'} onChange={(e) => updateCaption('font', e.target.value)}>
+            {['Outfit','Inter','Oswald','Bebas Neue','Cormorant Garamond','Playfair Display','Space Grotesk','DM Sans','Poppins'].map(f => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        </div>
+        <Slider label="Font Size" value={selectedCaption.fontSize ?? 36} min={16} max={96} step={1} unit="px"
+          onChange={(v) => updateCaption('fontSize', v)} />
+
+        <Divider />
+        <GroupHeader>Layer</GroupHeader>
+        <Slider label="Opacity" value={selectedCaption.opacity ?? 1} min={0} max={1} step={0.01}
+          onChange={(v) => updateCaption('opacity', v)} />
+      </div>
+    );
+  }
+
   if (selectedShape) {
     return (
       <div className="tab-panel">

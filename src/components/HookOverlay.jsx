@@ -574,6 +574,220 @@ function WordColoredText({ text, style }) {
   );
 }
 
+// ─── Caption style presets ────────────────────────────────────────────────────
+export const CAPTION_STYLES = {
+  'impact-pop': {
+    name: 'Impact Pop',
+    font: 'Outfit', weight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', containerGap: '0.2em',
+    inactive: { color: 'rgba(255,255,255,0.28)', transform: 'scale(0.9)' },
+    active:   { color: '#ffffff', transform: 'scale(1.22)', textShadow: '2px 2px 0 #000, -1px -1px 0 #000' },
+  },
+  'box-highlight': {
+    name: 'Box Highlight',
+    font: 'Outfit', weight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em', containerGap: '0.28em',
+    inactive: { color: 'rgba(255,255,255,0.5)', background: 'transparent', padding: '2px 6px' },
+    active:   { color: '#000000', background: 'var(--accent)', padding: '2px 10px', borderRadius: '4px' },
+  },
+  'karaoke': {
+    name: 'Karaoke',
+    font: 'Outfit', weight: 700, textTransform: 'none', containerGap: '0.35em',
+    inactive: { color: 'rgba(255,255,255,0.4)' },
+    active:   { color: 'var(--accent)', transform: 'scale(1.08)', textShadow: '0 0 14px var(--accent)' },
+  },
+  'neon-glow': {
+    name: 'Neon Glow',
+    font: 'Outfit', weight: 700, textTransform: 'uppercase', containerGap: '0.3em',
+    inactive: { color: 'rgba(150,150,255,0.18)' },
+    active:   { color: '#ffffff', textShadow: '0 0 8px var(--accent), 0 0 22px var(--accent), 0 0 42px var(--accent)' },
+  },
+  'stomp': {
+    name: 'Stomp',
+    font: 'Outfit', weight: 900, textTransform: 'uppercase', letterSpacing: '-0.03em', containerGap: 0,
+    displayMode: 'one-at-a-time',
+    inactive: { opacity: 0 },
+    active:   { color: '#ffffff', textShadow: '3px 3px 0 #000, -1px -1px 0 #000' },
+  },
+  'glide': {
+    name: 'Glide',
+    font: 'Outfit', weight: 700, textTransform: 'none', containerGap: '0.3em',
+    inactive: { color: 'rgba(255,255,255,0.22)', transform: 'translateY(6px)' },
+    active:   { color: '#ffffff', transform: 'translateY(0)', fontWeight: '800' },
+  },
+  'whisper': {
+    name: 'Whisper',
+    font: 'Cormorant Garamond', weight: 400, textTransform: 'none', letterSpacing: '0.05em', containerGap: '0.4em',
+    inactive: { color: 'rgba(255,255,255,0.18)' },
+    active:   { color: '#ffffff', fontWeight: '700', letterSpacing: '0.08em' },
+  },
+  'chunky': {
+    name: 'Chunky',
+    font: 'Outfit', weight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', containerGap: '0.22em',
+    inactive: { color: 'transparent', WebkitTextStroke: '2px rgba(255,255,255,0.22)' },
+    active:   { color: 'var(--accent)', WebkitTextStroke: '2px var(--accent)' },
+  },
+  'split-color': {
+    name: 'Split Color',
+    font: 'Outfit', weight: 800, textTransform: 'uppercase', containerGap: '0.25em',
+    inactive: { color: '#ffffff', opacity: 0.75 },
+    active:   { color: 'var(--accent)', transform: 'scale(1.12)', opacity: 1 },
+  },
+  'fire': {
+    name: 'Fire',
+    font: 'Outfit', weight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', containerGap: '0.2em',
+    inactive: { color: 'rgba(255,255,255,0.22)' },
+    active:   { color: '#ff6b00', textShadow: '0 0 12px #ff6b00, 0 0 26px #ff9500, 0 0 44px #ffca28', transform: 'scale(1.18)' },
+  },
+  'minimal': {
+    name: 'Minimal',
+    font: 'Inter', weight: 400, textTransform: 'none', letterSpacing: '0.01em', containerGap: '0.4em',
+    inactive: { color: 'rgba(255,255,255,0.32)' },
+    active:   { color: '#ffffff', fontWeight: '700', borderBottom: '2px solid rgba(255,255,255,0.55)' },
+  },
+  'underline-accent': {
+    name: 'Underline',
+    font: 'Outfit', weight: 700, textTransform: 'none', containerGap: '0.35em',
+    inactive: { color: 'rgba(255,255,255,0.4)' },
+    active:   { color: '#ffffff', borderBottom: '3px solid var(--accent)', paddingBottom: '2px' },
+  },
+};
+
+function CaptionLayer({ layer, isDesignMode, containerRef, videoElRef, video, isSelected, onClick }) {
+  const [ct, setCt] = React.useState(0);
+  const rafRef      = React.useRef(null);
+
+  // rAF loop: read video time directly from DOM element for smooth 60fps sync
+  React.useEffect(() => {
+    const tick = () => {
+      if (videoElRef?.current) setCt(videoElRef.current.currentTime);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [videoElRef]);
+
+  const stylePreset  = CAPTION_STYLES[layer.captionStyle ?? 'impact-pop'] ?? CAPTION_STYLES['impact-pop'];
+  const accentColor  = layer.accentColor ?? '#6366f1';
+
+  // Build word list with auto-WPM timing
+  const words = React.useMemo(() => {
+    const raw = (layer.text ?? '').split(/\s+/).filter(Boolean);
+    const spw = 60 / Math.max(30, layer.wpm ?? 120);
+    return raw.map((word, i) => ({ word, start: i * spw, end: (i + 1) * spw }));
+  }, [layer.text, layer.wpm]);
+
+  const relTime   = ct - (layer.startTime ?? 0);
+  const activeIdx = words.findIndex(w => relTime >= w.start && relTime < w.end);
+
+  // Resolve var(--accent) in style values
+  const resolve = (obj) =>
+    Object.fromEntries(Object.entries(obj ?? {}).map(([k, v]) => [
+      k, typeof v === 'string' ? v.replaceAll('var(--accent)', accentColor) : v,
+    ]));
+
+  const isStompMode = stylePreset.displayMode === 'one-at-a-time';
+  const displayWords = isStompMode
+    ? (activeIdx >= 0 ? [{ ...words[activeIdx], origIdx: activeIdx }] : [])
+    : words.map((w, i) => ({ ...w, origIdx: i }));
+
+  // Drag handling
+  const dragRef = React.useRef(null);
+  const handlePointerDown = (e) => {
+    if (!containerRef.current) return;
+    e.stopPropagation();
+    onClick();
+    const rect = containerRef.current.getBoundingClientRect();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: layer.x, origY: layer.y, rect };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup',   handlePointerUp);
+  };
+  const handlePointerMove = (e) => {
+    if (!dragRef.current) return;
+    const { rect, startX, startY, origX, origY } = dragRef.current;
+    const dx = ((e.clientX - startX) / rect.width)  * 100;
+    const dy = ((e.clientY - startY) / rect.height) * 100;
+    dragRef.current.newX = Math.max(0, Math.min(100, origX + dx));
+    dragRef.current.newY = Math.max(0, Math.min(100, origY + dy));
+    containerRef.current?.dispatchEvent(new CustomEvent('caption-drag', {
+      detail: { id: layer.id, x: dragRef.current.newX, y: dragRef.current.newY },
+    }));
+  };
+  const handlePointerUp = () => {
+    dragRef.current = null;
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup',   handlePointerUp);
+  };
+
+  if (layer.hidden) return null;
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      style={{
+        position:    'absolute',
+        left:        `${layer.x ?? 50}%`,
+        top:         `${layer.y ?? 75}%`,
+        transform:   'translate(-50%, -50%)',
+        maxWidth:    '88%',
+        display:     'flex',
+        flexWrap:    'wrap',
+        justifyContent: 'center',
+        alignItems:  'center',
+        gap:         stylePreset.containerGap ?? '0.28em',
+        fontFamily:  `'${layer.font ?? stylePreset.font ?? 'Outfit'}', sans-serif`,
+        fontSize:    `${layer.fontSize ?? 36}px`,
+        fontWeight:  stylePreset.weight ?? 700,
+        textTransform: stylePreset.textTransform ?? 'uppercase',
+        letterSpacing: stylePreset.letterSpacing ?? '-0.01em',
+        cursor:      'grab',
+        padding:     8,
+        outline:     isSelected ? '2px dashed rgba(99,102,241,0.8)' : 'none',
+        outlineOffset: 6,
+        textAlign:   'center',
+        lineHeight:  1.2,
+        opacity:     layer.opacity ?? 1,
+        zIndex:      90,
+        userSelect:  'none',
+        pointerEvents: 'auto',
+      }}
+    >
+      {/* In design mode, show all words fully visible so user can see/position the caption */}
+      {isDesignMode
+        ? words.map(({ word }, i) => (
+            <span key={i} style={{ display: 'inline-block', ...resolve(stylePreset.inactive), opacity: 0.7 }}>
+              {word}
+            </span>
+          ))
+        : displayWords.map(({ word, origIdx }) => {
+            const isActive = origIdx === activeIdx;
+            return (
+              <span
+                key={origIdx}
+                style={{
+                  display: 'inline-block',
+                  transition: 'all 0.1s ease',
+                  whiteSpace: 'nowrap',
+                  ...resolve(isActive ? stylePreset.active : stylePreset.inactive),
+                }}
+              >
+                {word}
+              </span>
+            );
+          })
+      }
+      {/* Selection ring label */}
+      {isSelected && (
+        <div style={{
+          position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)',
+          fontSize: 10, color: 'rgba(99,102,241,0.9)', whiteSpace: 'nowrap', pointerEvents: 'none',
+          background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4,
+        }}>
+          Caption
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Image-level warp wrapper ──────────────────────────────────────────────────
 
 const CSS_WARP_MAP = {
@@ -1149,6 +1363,21 @@ export default function HookOverlay() {
     return () => ro.disconnect();
   }, []);
 
+  // Caption drag handler
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e) => {
+      const { id, x, y } = e.detail;
+      setHookConfig((prev) => ({
+        ...prev,
+        captions: (prev.captions ?? []).map((c) => c.id === id ? { ...c, x, y } : c),
+      }));
+    };
+    el.addEventListener('caption-drag', handler);
+    return () => el.removeEventListener('caption-drag', handler);
+  }, [setHookConfig]);
+
   // ── Selection handler — supports additive (shift/ctrl) multi-select ──────────
   const handleSelect = (id, additive) => {
     if (additive) {
@@ -1523,6 +1752,25 @@ export default function HookOverlay() {
             setHookConfig((prev) => ({ ...prev, shapes: (prev.shapes ?? []).map((l) => l.id === id ? { ...l, x, y } : l) }))}
           onSizeChange={(id, w, h) =>
             setHookConfig((prev) => ({ ...prev, shapes: (prev.shapes ?? []).map((l) => l.id === id ? { ...l, width: w, height: h } : l) }))}
+        />
+      ))}
+
+      {/* Caption layers */}
+      {(hookConfig.captions ?? []).map((cap) => (
+        <CaptionLayer
+          key={cap.id}
+          layer={cap}
+          isDesignMode={isDesignMode}
+          containerRef={containerRef}
+          videoElRef={videoElRef}
+          video={video}
+          isSelected={selectedLayerId === cap.id && selectedLayerType === 'caption'}
+          onClick={() => {
+            setSelectedLayerId(cap.id);
+            setSelectedLayerType('caption');
+            setSelectedTextId(null);
+            setSelectedTextIds([]);
+          }}
         />
       ))}
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MousePointer2, Type, LayoutGrid, ZoomIn, ZoomOut, Magnet, Image, Square, Circle, Minus } from 'lucide-react';
+import { MousePointer2, Type, LayoutGrid, ZoomIn, ZoomOut, Magnet, Image, Square, Circle, Minus, MessageSquare } from 'lucide-react';
 import { useHookStore } from '../context/HookContext';
 
 export default function CanvasToolbar() {
@@ -8,7 +8,7 @@ export default function CanvasToolbar() {
     canvasZoom, setCanvasZoom, CANVAS_ZOOM_LEVELS,
     showGrid, setShowGrid,
     snapToGrid, setSnapToGrid,
-    addImageLayer, addShapeLayer,
+    addImageLayer, addShapeLayer, addCaptionLayer,
   } = useHookStore();
 
   const fileInputRef = useRef(null);
@@ -118,6 +118,16 @@ export default function CanvasToolbar() {
         <span>Image</span>
       </button>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} />
+
+      {/* Caption button */}
+      <button
+        className="canvas-tool-btn"
+        title="Add Caption (word-by-word)"
+        onClick={() => addCaptionLayer()}
+      >
+        <MessageSquare size={15} strokeWidth={2} />
+        <span>Caption</span>
+      </button>
 
       {/* Shape tool */}
       <div style={{ position: 'relative' }}>

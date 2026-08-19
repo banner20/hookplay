@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, Unlock, Trash2, Type, Image as ImageIcon, Square, Circle, Minus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, Lock, Unlock, Trash2, Type, Image as ImageIcon, Square, Circle, Minus, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
 import { useHookStore } from '../context/HookContext';
 
 const TYPE_ICON = {
@@ -14,6 +14,7 @@ const TYPE_ICON = {
   hexagon: <span style={{ fontSize: 10, lineHeight: 1 }}>⬡</span>,
   chevron: <span style={{ fontSize: 10, lineHeight: 1 }}>›</span>,
   cross:   <span style={{ fontSize: 10, lineHeight: 1 }}>✕</span>,
+  caption: <MessageSquare size={11} strokeWidth={2} />,
 };
 
 const SHAPE_PRESETS = [
@@ -41,12 +42,13 @@ export default function LayerPanel() {
     addShapeLayer,
   } = useHookStore();
 
-  const { texts = [], images = [], shapes = [] } = hookConfig;
+  const { texts = [], images = [], shapes = [], captions = [] } = hookConfig;
 
   const allLayers = [
-    ...images.map((l) => ({ ...l, _type: 'image' })),
-    ...shapes.map((l) => ({ ...l, _type: 'shape' })),
-    ...texts.map((l)  => ({ ...l, _type: 'text' })),
+    ...images.map((l)   => ({ ...l, _type: 'image'   })),
+    ...shapes.map((l)   => ({ ...l, _type: 'shape'   })),
+    ...captions.map((l) => ({ ...l, _type: 'caption' })),
+    ...texts.map((l)    => ({ ...l, _type: 'text'    })),
   ];
 
   const isSelected = (layer) =>
@@ -66,7 +68,7 @@ export default function LayerPanel() {
 
   const patchLayer = (type, id, patch, e) => {
     e?.stopPropagation();
-    const key = type === 'text' ? 'texts' : type === 'image' ? 'images' : 'shapes';
+    const key = type === 'text' ? 'texts' : type === 'image' ? 'images' : type === 'caption' ? 'captions' : 'shapes';
     setHookConfig((prev) => ({
       ...prev,
       [key]: (prev[key] ?? []).map((l) => l.id === id ? { ...l, ...patch } : l),
@@ -75,21 +77,23 @@ export default function LayerPanel() {
 
   const removeLayer = (type, id, e) => {
     e?.stopPropagation();
-    const key = type === 'text' ? 'texts' : type === 'image' ? 'images' : 'shapes';
+    const key = type === 'text' ? 'texts' : type === 'image' ? 'images' : type === 'caption' ? 'captions' : 'shapes';
     setHookConfig((prev) => ({ ...prev, [key]: (prev[key] ?? []).filter((l) => l.id !== id) }));
     if (type === 'text') { setSelectedTextId(null); setSelectedTextIds([]); }
     else if (selectedLayerId === id) { setSelectedLayerId(null); setSelectedLayerType(null); }
   };
 
   const getLabel = (layer) => {
-    if (layer._type === 'text')  return (layer.content || 'Text').slice(0, 26);
-    if (layer._type === 'image') return layer.name || 'Image';
+    if (layer._type === 'text')    return (layer.content || 'Text').slice(0, 26);
+    if (layer._type === 'image')   return layer.name || 'Image';
+    if (layer._type === 'caption') return (layer.text || 'Caption').slice(0, 26);
     return layer.name || ({ rect: 'Rectangle', circle: 'Ellipse', line: 'Line', star: 'Star', arrow: 'Arrow', diamond: 'Diamond', hexagon: 'Hexagon', chevron: 'Chevron', cross: 'Cross' }[layer.shape] ?? 'Shape');
   };
 
   const getIcon = (layer) => {
-    if (layer._type === 'text')  return TYPE_ICON.text;
-    if (layer._type === 'image') return TYPE_ICON.image;
+    if (layer._type === 'text')    return TYPE_ICON.text;
+    if (layer._type === 'image')   return TYPE_ICON.image;
+    if (layer._type === 'caption') return TYPE_ICON.caption;
     return TYPE_ICON[layer.shape] ?? TYPE_ICON.rect;
   };
 
